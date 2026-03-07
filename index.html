@@ -471,6 +471,67 @@
   .copy-success { color: var(--green); font-size: 12px; margin-left: auto; align-self: center; opacity: 0; transition: opacity 0.3s; }
   .copy-success.show { opacity: 1; }
 
+  /* ─── CALENDAR PICKER ────────────────────── */
+  .cal-wrap { position: relative; }
+  .cal-trigger {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; font-size: 14px; padding: 2px 4px;
+    transition: color var(--transition); line-height: 1;
+  }
+  .cal-trigger:hover { color: var(--accent); }
+  .calendar {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 500;
+    background: var(--bg-2); border: 1px solid var(--border-active);
+    border-radius: var(--radius-lg); padding: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    width: 260px; display: none;
+    animation: fadeIn 0.15s ease;
+  }
+  .calendar.open { display: block; }
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cal-nav {
+    background: none; border: none; color: var(--text-2);
+    cursor: pointer; font-size: 16px; padding: 4px 8px;
+    border-radius: 5px; transition: all var(--transition);
+  }
+  .cal-nav:hover { background: var(--bg-3); color: var(--text-1); }
+  .cal-month-label {
+    font-family: var(--font-display); font-size: 13px;
+    font-weight: 600; color: var(--text-1);
+  }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .cal-dow {
+    font-size: 9px; color: var(--text-3); text-align: center;
+    padding: 3px 0; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .cal-day {
+    font-size: 11px; text-align: center; padding: 5px 2px;
+    border-radius: 5px; cursor: pointer; color: var(--text-2);
+    transition: all var(--transition); border: none; background: none;
+  }
+  .cal-day:hover { background: var(--bg-3); color: var(--text-1); }
+  .cal-day.today { color: var(--accent); font-weight: 600; }
+  .cal-day.selected { background: var(--accent); color: #0d0f11; font-weight: 600; }
+  .cal-day.other-month { color: var(--text-3); opacity: 0.4; }
+  .cal-day.empty { cursor: default; }
+
+  /* ─── EDIT MODAL ─────────────────────────── */
+  #edit-modal .modal { max-width: 500px; }
+  .edit-btn {
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; font-size: 13px; padding: 2px 6px;
+    border-radius: 4px; transition: all var(--transition);
+    line-height: 1;
+  }
+  .edit-btn:hover { background: var(--blue-dim); color: var(--blue); }
+
   /* ─── HISTORY VIEW ────────────────────────────── */
   /* Sort solution: dates stored as YYYY-MM-DD internally,
      displayed as MM-DD-YYYY. Sort on the stored value, render the display. */
@@ -614,7 +675,14 @@
           <button class="qp-btn active" id="qp-today" onclick="setQuickDate('today')">Today</button>
           <button class="qp-btn" id="qp-yesterday" onclick="setQuickDate('yesterday')">Yesterday</button>
         </div>
-        <input type="text" id="e-date" placeholder="MM-DD-YYYY" maxlength="10" oninput="formatDateInput(this); updatePreview()">
+        <div class="cal-wrap">
+          <input type="text" id="e-date" placeholder="MM-DD-YYYY" maxlength="10"
+            oninput="formatDateInput(this); updatePreview()"
+            onfocus="openCalendar('main-cal', 'e-date')"
+            style="padding-right:32px">
+          <button class="cal-trigger" type="button" onclick="toggleCalendar('main-cal', 'e-date')">📅</button>
+          <div class="calendar" id="main-cal"></div>
+        </div>
       </div>
 
       <div class="field">
@@ -776,6 +844,80 @@
       <button class="btn btn-primary btn-sm" onclick="copyInvoiceText()">Copy to Clipboard</button>
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
       <span class="copy-success" id="copy-success">✓ Copied!</span>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Entry Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">Edit Entry</div>
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-entry-id">
+      <div class="field">
+        <label>Client</label>
+        <select id="edit-client"></select>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <div class="cal-wrap">
+          <input type="text" id="edit-date" placeholder="MM-DD-YYYY" maxlength="10"
+            oninput="formatDateInput(this)"
+            style="padding-right:32px">
+          <button class="cal-trigger" type="button" onclick="toggleCalendar('edit-cal', 'edit-date')">📅</button>
+          <div class="calendar" id="edit-cal"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Time Range</label>
+        <div class="time-row">
+          <div class="time-field">
+            <label>Start</label>
+            <div class="time-input-wrap">
+              <input type="text" id="edit-start-h" placeholder="9" maxlength="2">
+              <span class="time-sep">:</span>
+              <input type="text" id="edit-start-m" placeholder="00" maxlength="2">
+              <div class="ampm-toggle">
+                <button class="ampm-btn" id="edit-start-am" onclick="toggleEditAmPm('start','AM')">AM</button>
+                <button class="ampm-btn" id="edit-start-pm" onclick="toggleEditAmPm('start','PM')">PM</button>
+              </div>
+            </div>
+          </div>
+          <div class="time-field">
+            <label>End</label>
+            <div class="time-input-wrap">
+              <input type="text" id="edit-end-h" placeholder="5" maxlength="2">
+              <span class="time-sep">:</span>
+              <input type="text" id="edit-end-m" placeholder="00" maxlength="2">
+              <div class="ampm-toggle">
+                <button class="ampm-btn" id="edit-end-am" onclick="toggleEditAmPm('end','AM')">AM</button>
+                <button class="ampm-btn" id="edit-end-pm" onclick="toggleEditAmPm('end','PM')">PM</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Lunch Break (min)</label>
+        <select id="edit-lunch">
+          <option value="0">None</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+          <option value="90">90 min</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Description <span style="color:var(--text-3);font-size:10px">(optional)</span></label>
+        <textarea id="edit-desc" rows="3" placeholder="UI revisions, client call, brand assets…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="saveEdit()">Save Changes</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeEditModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1228,10 +1370,13 @@ function renderPending() {
       return `<tr>
         <td class="date-cell">${toDisplay(e.date)}</td>
         <td>${minToDisplay(e.startMin)} – ${minToDisplay(e.endMin)}${e.lunchMin > 0 ? ` (−${e.lunchMin}m)` : ''}</td>
-        <td class="desc-cell">${e.desc}</td>
+        <td class="desc-cell">${e.desc || '—'}</td>
         <td class="hours-cell">${formatHours(h)}</td>
         <td class="amount-cell">$${amt.toFixed(2)}</td>
-        <td class="action-cell"><button class="del-btn" onclick="deleteEntry('${e.id}')" title="Delete">×</button></td>
+        <td class="action-cell" style="white-space:nowrap">
+          <button class="edit-btn" onclick="openEditModal('${e.id}')" title="Edit">✎</button>
+          <button class="del-btn" onclick="deleteEntry('${e.id}')" title="Delete">×</button>
+        </td>
       </tr>`;
     }).join('');
 
@@ -1619,6 +1764,246 @@ if (sessionStorage.getItem('ledger_unlocked') === '1') {
   init();
 }
 
+
+// =============================================
+// CALENDAR PICKER
+// =============================================
+let calState = {}; // tracks current month for each calendar instance
+
+function openCalendar(calId, inputId) {
+  // Don't re-open if already open
+  const cal = document.getElementById(calId);
+  if (cal.classList.contains('open')) return;
+  renderCalendar(calId, inputId);
+  cal.classList.add('open');
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!cal.contains(e.target) && e.target.id !== inputId) {
+        cal.classList.remove('open');
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
+}
+
+function toggleCalendar(calId, inputId) {
+  const cal = document.getElementById(calId);
+  if (cal.classList.contains('open')) {
+    cal.classList.remove('open');
+  } else {
+    openCalendar(calId, inputId);
+  }
+}
+
+function renderCalendar(calId, inputId) {
+  const cal = document.getElementById(calId);
+  const input = document.getElementById(inputId);
+
+  // Parse selected date from input (MM-DD-YYYY) or use today
+  let selected = null;
+  if (input.value && input.value.length === 10) {
+    selected = toIso(input.value); // YYYY-MM-DD
+  }
+
+  // Determine which month to show
+  if (!calState[calId]) {
+    const base = selected || todayIso();
+    calState[calId] = { year: parseInt(base.slice(0,4)), month: parseInt(base.slice(5,7)) - 1 };
+  }
+  const { year, month } = calState[calId];
+  const todayStr = todayIso();
+
+  const monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+  const dowLabels = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  // First day of month, last day
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev  = new Date(year, month, 0).getDate();
+
+  let cells = '';
+  // Day-of-week headers
+  dowLabels.forEach(d => { cells += `<div class="cal-dow">${d}</div>`; });
+
+  // Leading empty cells (prev month days)
+  for (let i = 0; i < firstDay; i++) {
+    const d = daysInPrev - firstDay + 1 + i;
+    cells += `<button class="cal-day other-month" disabled>${d}</button>`;
+  }
+
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const mm = String(month + 1).padStart(2,'0');
+    const dd = String(d).padStart(2,'0');
+    const iso = `${year}-${mm}-${dd}`;
+    let cls = 'cal-day';
+    if (iso === todayStr) cls += ' today';
+    if (iso === selected) cls += ' selected';
+    cells += `<button class="${cls}" onclick="pickDate('${iso}','${calId}','${inputId}')">${d}</button>`;
+  }
+
+  // Trailing cells
+  const total = firstDay + daysInMonth;
+  const trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= trailing; i++) {
+    cells += `<button class="cal-day other-month" disabled>${i}</button>`;
+  }
+
+  cal.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav" onclick="calNav(-1,'${calId}','${inputId}')">‹</button>
+      <span class="cal-month-label">${monthNames[month]} ${year}</span>
+      <button class="cal-nav" onclick="calNav(1,'${calId}','${inputId}')">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+  `;
+}
+
+function calNav(dir, calId, inputId) {
+  if (!calState[calId]) calState[calId] = { year: new Date().getFullYear(), month: new Date().getMonth() };
+  let { year, month } = calState[calId];
+  month += dir;
+  if (month > 11) { month = 0; year++; }
+  if (month < 0)  { month = 11; year--; }
+  calState[calId] = { year, month };
+  renderCalendar(calId, inputId);
+}
+
+function pickDate(isoDate, calId, inputId) {
+  const input = document.getElementById(inputId);
+  input.value = toDisplay(isoDate);
+  // Sync quick-picks if this is the main sidebar calendar
+  if (inputId === 'e-date') {
+    selectedDate = isoDate;
+    document.getElementById('qp-today').classList.toggle('active', isoDate === todayIso());
+    document.getElementById('qp-yesterday').classList.toggle('active', isoDate === yesterdayIso());
+    updatePreview();
+  }
+  // Reset cal state so next open shows selected month
+  calState[calId] = { year: parseInt(isoDate.slice(0,4)), month: parseInt(isoDate.slice(5,7)) - 1 };
+  document.getElementById(calId).classList.remove('open');
+}
+
+// =============================================
+// EDIT MODAL
+// =============================================
+let editStartAmPm = 'AM', editEndAmPm = 'PM';
+
+function openEditModal(id) {
+  const entry = state.pending.find(e => e.id === id);
+  if (!entry) return;
+
+  // Populate client dropdown
+  const sel = document.getElementById('edit-client');
+  sel.innerHTML = '';
+  for (const c of state.clients) {
+    const name = typeof c === 'string' ? c : c.name;
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  }
+  sel.value = entry.client;
+
+  // Populate fields
+  document.getElementById('edit-entry-id').value = id;
+  document.getElementById('edit-date').value = toDisplay(entry.date);
+  document.getElementById('edit-desc').value = entry.desc || '';
+  document.getElementById('edit-lunch').value = entry.lunchMin;
+
+  // Reset cal state for edit calendar so it opens on entry's month
+  calState['edit-cal'] = {
+    year:  parseInt(entry.date.slice(0,4)),
+    month: parseInt(entry.date.slice(5,7)) - 1
+  };
+
+  // Convert startMin / endMin back to 12-hour fields
+  function minToFields(totalMin) {
+    let h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 === 0 ? 12 : h % 12;
+    return { h: String(h), m: String(m).padStart(2,'0'), ampm };
+  }
+
+  const s = minToFields(entry.startMin);
+  const en = minToFields(entry.endMin);
+
+  document.getElementById('edit-start-h').value = s.h;
+  document.getElementById('edit-start-m').value = s.m;
+  document.getElementById('edit-end-h').value   = en.h;
+  document.getElementById('edit-end-m').value   = en.m;
+
+  editStartAmPm = s.ampm;
+  editEndAmPm   = en.ampm;
+  document.getElementById('edit-start-am').classList.toggle('active', s.ampm === 'AM');
+  document.getElementById('edit-start-pm').classList.toggle('active', s.ampm === 'PM');
+  document.getElementById('edit-end-am').classList.toggle('active', en.ampm === 'AM');
+  document.getElementById('edit-end-pm').classList.toggle('active', en.ampm === 'PM');
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  document.getElementById('edit-cal').classList.remove('open');
+}
+
+function toggleEditAmPm(which, val) {
+  if (which === 'start') {
+    editStartAmPm = val;
+    document.getElementById('edit-start-am').classList.toggle('active', val === 'AM');
+    document.getElementById('edit-start-pm').classList.toggle('active', val === 'PM');
+  } else {
+    editEndAmPm = val;
+    document.getElementById('edit-end-am').classList.toggle('active', val === 'AM');
+    document.getElementById('edit-end-pm').classList.toggle('active', val === 'PM');
+  }
+}
+
+async function saveEdit() {
+  const id     = document.getElementById('edit-entry-id').value;
+  const client = document.getElementById('edit-client').value;
+  const date   = document.getElementById('edit-date').value;
+  const sh     = document.getElementById('edit-start-h').value;
+  const sm     = document.getElementById('edit-start-m').value || '0';
+  const eh     = document.getElementById('edit-end-h').value;
+  const em     = document.getElementById('edit-end-m').value || '0';
+  const lunch  = parseInt(document.getElementById('edit-lunch').value) || 0;
+  const desc   = document.getElementById('edit-desc').value.trim();
+
+  if (!client) { showToast('Select a client.', 'error'); return; }
+  if (!date || date.length !== 10) { showToast('Enter a valid date.', 'error'); return; }
+  if (!sh || !eh) { showToast('Enter start and end times.', 'error'); return; }
+
+  const startMin = timeToMin(sh, sm, editStartAmPm);
+  const endMin   = timeToMin(eh, em, editEndAmPm);
+  if (endMin <= startMin) { showToast('End time must be after start.', 'error'); return; }
+
+  const updatedEntry = {
+    id, client, date: toIso(date),
+    startMin, endMin, lunchMin: lunch, desc
+  };
+
+  showLoading('Saving changes…');
+  try {
+    // Delete old + add new is the simplest atomic update via Apps Script
+    await api('deleteEntry', { id });
+    await api('addEntry', updatedEntry);
+    // Update local state
+    const idx = state.pending.findIndex(e => e.id === id);
+    if (idx !== -1) state.pending[idx] = updatedEntry;
+    updateCache();
+    renderPending();
+    closeEditModal();
+    showToast('Entry updated.', 'success');
+  } catch(e) {
+    showToast('Update failed: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
 </script>
 </body>
 </html>

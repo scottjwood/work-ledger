@@ -711,40 +711,7 @@
     <!-- SETTINGS VIEW -->
     <div class="view" id="view-settings">
       <div class="settings-grid">
-        <div class="settings-card" style="grid-column:1/-1;border-color:rgba(232,197,71,0.25)">
-          <h3 style="color:var(--accent)">⚙ Google Sheets Connection</h3>
-          <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">Paste your Apps Script Web App URL here. Deploy the Code.gs file first.</p>
-          <div style="display:flex;gap:8px;align-items:flex-end">
-            <div class="field" style="margin:0;flex:1">
-              <label>Apps Script URL</label>
-              <input type="text" id="s-script-url" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:11px">
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="saveScriptUrl()" style="height:36px;padding:0 14px;white-space:nowrap">Save & Test</button>
-          </div>
-          <div id="url-status" style="font-size:11px;color:var(--text-3);margin-top:8px"></div>
-          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-            <label style="display:block;font-size:11px;color:var(--text-2);margin-bottom:5px;letter-spacing:0.04em">API Token <span style="color:var(--text-3)">(optional but recommended)</span></label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="password" id="s-api-token" placeholder="your-secret-token"
-                style="flex:1;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:13px;padding:7px 10px;outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,0.3)">
-              <button class="btn btn-ghost btn-sm" onclick="saveApiToken()" style="white-space:nowrap">Save Token</button>
-            </div>
-            <p style="font-size:10px;color:var(--text-3);margin-top:6px">Set the same token in your Apps Script as <code style="background:var(--bg-3);padding:1px 5px;border-radius:3px">API_TOKEN</code>. Stored locally only — never sent to GitHub.</p>
-          </div>
-          <div style="margin-top:12px">
-            <button class="btn btn-ghost btn-sm" onclick="runDebugTest()" style="font-size:11px">🔬 Run Debug Test</button>
-          </div>
-        </div>
-        <div class="settings-card" id="debug-panel" style="grid-column:1/-1;display:none">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-            <h3 style="margin:0">Debug Log</h3>
-            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('debug-log').innerHTML=''" style="font-size:10px">Clear</button>
-            <button class="btn btn-ghost btn-sm" onclick="copyDebugLog()" style="font-size:10px">Copy All</button>
-          </div>
-          <div id="debug-log" style="font-family:var(--font-mono);font-size:11px;max-height:300px;overflow-y:auto;background:var(--bg-3);border-radius:6px;padding:10px;border:1px solid var(--border)">
-            <div style="color:var(--text-3)">No logs yet — run a test above.</div>
-          </div>
-        </div>
+
         <div class="settings-card" style="grid-column:1/-1">
           <h3>Hourly Rate</h3>
           <div class="field" style="max-width:200px">
@@ -907,21 +874,6 @@ async function api(action, payload = {}) {
   return json.data;
 }
 
-// Debug log — shows in the UI debug panel AND browser console
-function debugLog(label, detail) {
-  console.log('[Ledger]', label, detail);
-  const panel = document.getElementById('debug-panel');
-  const log   = document.getElementById('debug-log');
-  if (!panel || !log) return;
-  panel.style.display = 'block';
-  const line = document.createElement('div');
-  line.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.05);padding:4px 0;word-break:break-all';
-  const time = new Date().toLocaleTimeString();
-  line.innerHTML = `<span style="color:var(--text-3)">${time}</span> <span style="color:var(--accent)">${label}</span><br><span style="color:var(--text-2);font-size:10px">${String(detail).replace(/</g,'&lt;')}</span>`;
-  log.prepend(line);
-  // Keep only last 20 lines
-  while (log.children.length > 20) log.removeChild(log.lastChild);
-}
 
 // Load full state from Sheets on startup
 async function loadFromSheets() {
@@ -1001,11 +953,7 @@ function lockApp() {
 // INIT
 // =============================================
 async function init() {
-  // Populate URL and token fields if already saved
-  const savedUrl = localStorage.getItem('ledger_script_url');
-  if (savedUrl) document.getElementById('s-script-url').value = savedUrl;
-  const savedToken = localStorage.getItem('ledger_api_token');
-  if (savedToken) document.getElementById('s-api-token').value = savedToken;
+
 
   await loadFromSheets();
   populateClients();
@@ -1622,76 +1570,8 @@ async function savePin() {
   } finally { hideLoading(); }
 }
 
-function saveApiToken() {
-  const val = document.getElementById('s-api-token').value.trim();
-  API_TOKEN = val;
-  localStorage.setItem('ledger_api_token', val);
-  showToast(val ? 'API token saved.' : 'Token cleared.', 'success');
-}
 
-async function runDebugTest() {
-  const url = document.getElementById('s-script-url').value.trim() || SCRIPT_URL;
-  if (!url || url === 'YOUR_APPS_SCRIPT_URL_HERE') {
-    debugLog('✗ No URL', 'Paste your Apps Script URL first');
-    return;
-  }
-  SCRIPT_URL = url;
-  document.getElementById('debug-panel').style.display = 'block';
 
-  // Test 1: raw fetch with no params
-  debugLog('Test 1: raw fetch', url);
-  try {
-    const r1 = await fetch(url, { method: 'GET', redirect: 'follow' });
-    const t1 = await r1.text();
-    debugLog('Test 1 result: ' + r1.status, t1.slice(0, 200));
-  } catch(e) {
-    debugLog('Test 1 FAILED', e.message + ' | ' + e.name + ' | This usually means the browser blocked the request entirely (check for HTTPS issues or browser extensions)');
-  }
-
-  // Test 2: with action=loadAll
-  debugLog('Test 2: action=loadAll', url + '?action=loadAll&payload={}');
-  try {
-    const r2 = await fetch(url + '?action=loadAll&payload=%7B%7D', { method: 'GET', redirect: 'follow' });
-    const t2 = await r2.text();
-    debugLog('Test 2 result: ' + r2.status, t2.slice(0, 300));
-  } catch(e) {
-    debugLog('Test 2 FAILED', e.message);
-  }
-}
-
-function copyDebugLog() {
-  const log = document.getElementById('debug-log');
-  const text = Array.from(log.querySelectorAll('div')).map(d => d.textContent).join('\n---\n');
-  navigator.clipboard.writeText(text).then(() => showToast('Debug log copied.', 'success'));
-}
-
-async function saveScriptUrl() {
-  const url = document.getElementById('s-script-url').value.trim();
-  const statusEl = document.getElementById('url-status');
-  if (!url || !url.startsWith('https://script.google.com')) {
-    statusEl.style.color = 'var(--red)';
-    statusEl.textContent = '✗ Must be a https://script.google.com URL';
-    return;
-  }
-  SCRIPT_URL = url;
-  localStorage.setItem('ledger_script_url', url);
-  statusEl.style.color = 'var(--text-3)';
-  statusEl.textContent = 'Testing connection…';
-  try {
-    await loadFromSheets();
-    populateClients();
-    renderClients();
-    renderPending();
-    renderHistory();
-    document.getElementById('s-rate').value = state.rate;
-    document.getElementById('rate-display').textContent = `$${state.rate}/hr`;
-    statusEl.style.color = 'var(--green)';
-    statusEl.textContent = '✓ Connected successfully!';
-  } catch(e) {
-    statusEl.style.color = 'var(--red)';
-    statusEl.textContent = '✗ Connection failed: ' + e.message;
-  }
-}
 
 function exportData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -1704,10 +1584,8 @@ function exportData() {
 function clearConnectionSettings() {
   localStorage.removeItem('ledger_script_url');
   localStorage.removeItem('ledger_api_token');
-  SCRIPT_URL = localStorage.getItem('ledger_script_url') || document.querySelector('script') && '%%SCRIPT_URL%%';
-  API_TOKEN  = localStorage.getItem('ledger_api_token')  || '';
-  document.getElementById('s-script-url').value = '';
-  document.getElementById('s-api-token').value  = '';
+  SCRIPT_URL = '%%SCRIPT_URL%%';
+  API_TOKEN  = '%%API_TOKEN%%';
   showToast('Connection settings cleared. Using built-in values.', 'success');
 }
 

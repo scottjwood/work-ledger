@@ -782,10 +782,12 @@
         </div>
         <div class="settings-card" style="grid-column:1/-1">
           <h3>Data Management</h3>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="exportData()">↓ Export JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearConnectionSettings()">✕ Clear Saved URL &amp; Token</button>
             <button class="btn btn-danger btn-sm" onclick="clearAllData()">⚠ Clear All Data</button>
           </div>
+          <p style="font-size:10px;color:var(--text-3);margin-top:10px">"Clear Saved URL &amp; Token" removes locally stored connection settings so the app falls back to the built-in values. Use this after setting up Cloudflare environment variables.</p>
         </div>
       </div>
     </div>
@@ -1697,6 +1699,16 @@ function exportData() {
   a.href = URL.createObjectURL(blob);
   a.download = `ledger-export-${todayIso()}.json`;
   a.click();
+}
+
+function clearConnectionSettings() {
+  localStorage.removeItem('ledger_script_url');
+  localStorage.removeItem('ledger_api_token');
+  SCRIPT_URL = localStorage.getItem('ledger_script_url') || document.querySelector('script') && '%%SCRIPT_URL%%';
+  API_TOKEN  = localStorage.getItem('ledger_api_token')  || '';
+  document.getElementById('s-script-url').value = '';
+  document.getElementById('s-api-token').value  = '';
+  showToast('Connection settings cleared. Using built-in values.', 'success');
 }
 
 function clearAllData() {

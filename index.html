@@ -851,17 +851,21 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 
-// Core fetch wrapper — all calls POST to the same endpoint
+// Core fetch wrapper — GET + URL params, no CORS issues with Apps Script
 async function api(action, payload = {}) {
   if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
     throw new Error('SCRIPT_URL not configured. Open Settings and paste your Apps Script URL.');
   }
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' }, // text/plain avoids CORS preflight
-    body: JSON.stringify({ action, payload })
+  const params = new URLSearchParams({
+    action,
+    payload: JSON.stringify(payload)
   });
-  const json = await res.json();
+  const url = SCRIPT_URL + '?' + params.toString();
+  const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch(e) { throw new Error('Bad response: ' + text.slice(0, 120)); }
   if (!json.ok) throw new Error(json.error || 'Unknown API error');
   return json.data;
 }

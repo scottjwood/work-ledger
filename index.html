@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Work to Invoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* =============================================
+     DESIGN SYSTEM — "Oxidized Steel" Dark Theme
+     Visual Depth Solution: 3-layer surface system.
+     bg-0 (#0d0f11) → bg-1 (#161920) → bg-2 (#1e2229)
+     bg-3 (#252c35) for inputs/dropdowns
+     bg-4 (#2d3540) for hover states
+     This creates perceptible Z-axis without neon glow.
+  ============================================= */
+  :root {
+    --bg-0: #0d0f11;
+    --bg-1: #161920;
+    --bg-2: #1e2229;
+    --bg-3: #252c35;
+    --bg-4: #2d3540;
+    --bg-5: #38404d;
+    --border: rgba(255,255,255,0.07);
+    --border-active: rgba(255,255,255,0.18);
+    --accent: #e8c547;
+    --accent-dim: rgba(232,197,71,0.12);
+    --accent-dim2: rgba(232,197,71,0.06);
+    --text-1: #f0f2f5;
+    --text-2: #8c95a3;
+    --text-3: #545f6d;
+    --green: #4ade80;
+    --green-dim: rgba(74,222,128,0.1);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.1);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.1);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --sidebar-w: 360px;
+    --transition: 180ms cubic-bezier(0.4,0,0.2,1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 14px; }
+
+  body {
+    background: var(--bg-0);
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── LOCK SCREEN ─────────────────────────────── */
+  #lock-screen {
+    position: fixed; inset: 0;
+    background: var(--bg-0);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 24px;
+  }
+  #lock-screen .lock-logo {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-1);
+  }
+  #lock-screen .lock-logo span { color: var(--accent); }
+  #lock-screen .lock-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    width: 320px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  #lock-screen label {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-2); display: block; margin-bottom: 6px;
+  }
+  #lock-screen input {
+    width: 100%;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  #lock-screen input:focus { border-color: var(--accent); }
+  #lock-hint { font-size: 11px; color: var(--text-3); }
+  #lock-error { font-size: 12px; color: var(--red); display: none; }
+
+  /* ─── TOP BAR ─────────────────────────────────── */
+  header {
+    height: 52px;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+    flex-shrink: 0;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 800;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--accent); }
+  .header-divider { width: 1px; height: 20px; background: var(--border); }
+  .tab-bar { display: flex; gap: 2px; }
+  .tab-btn {
+    background: none; border: none;
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: all var(--transition);
+  }
+  .tab-btn:hover { color: var(--text-1); background: var(--bg-3); }
+  .tab-btn.active { color: var(--accent); background: var(--accent-dim); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .rate-badge {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px; color: var(--text-2);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .rate-badge strong { color: var(--accent); font-weight: 500; }
+  #lock-btn {
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px;
+    color: var(--text-3); cursor: pointer; font-size: 12px;
+    transition: all var(--transition); font-family: var(--font-mono);
+  }
+  #lock-btn:hover { color: var(--text-1); border-color: var(--border-active); }
+
+  /* ─── LAYOUT ──────────────────────────────────── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 52px);
+  }
+
+  /* ─── SIDEBAR ─────────────────────────────────── */
+  aside {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--bg-1);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-3); margin-bottom: 14px;
+  }
+
+  /* Form controls */
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block; font-size: 11px;
+    color: var(--text-2); margin-bottom: 5px;
+    letter-spacing: 0.04em;
+  }
+  /* VISUAL DEPTH SOLUTION for inputs:
+     bg-3 base + subtle inner shadow + 1px brighter-on-focus border.
+     The inner-shadow creates a "recessed" feel without neon. */
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.35);
+    -webkit-appearance: none;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--border-active);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.35), 0 0 0 2px rgba(232,197,71,0.08);
+  }
+  .field select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238c95a3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+  .field select option { background: var(--bg-3); }
+  .field textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+  /* Date quick-picks */
+  .quick-picks { display: flex; gap: 6px; margin-bottom: 12px; }
+  .qp-btn {
+    flex: 1; background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 0;
+    color: var(--text-2); font-family: var(--font-mono);
+    font-size: 11px; cursor: pointer;
+    transition: all var(--transition); letter-spacing: 0.04em;
+  }
+  .qp-btn:hover { background: var(--bg-4); color: var(--text-1); }
+  .qp-btn.active { background: var(--accent-dim); border-color: rgba(232,197,71,0.3); color: var(--accent); }
+
+  /* Time row */
+  .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .time-field { position: relative; }
+  .time-field label { font-size: 11px; color: var(--text-2); margin-bottom: 5px; display: block; }
+  .time-input-wrap { display: flex; gap: 4px; align-items: center; }
+  .time-input-wrap input[type="text"] {
+    width: 54px; text-align: center;
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text-1);
+    font-family: var(--font-mono); font-size: 13px;
+    padding: 8px 6px; outline: none;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.35);
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .time-input-wrap input[type="text"]:focus {
+    border-color: var(--border-active);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.35), 0 0 0 2px rgba(232,197,71,0.08);
+  }
+  .ampm-toggle { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .ampm-btn {
+    background: var(--bg-3); border: none; color: var(--text-3);
+    font-family: var(--font-mono); font-size: 11px;
+    padding: 6px 8px; cursor: pointer;
+    transition: all var(--transition);
+  }
+  .ampm-btn.active { background: var(--bg-5); color: var(--text-1); }
+  .time-sep { color: var(--text-3); font-size: 13px; }
+
+  /* ENTRY PREVIEW — compact informational block
+     Design: monospace data grid. 3 lines max. No giant numbers.
+     The billable amount gets emphasis via accent color, not font size. */
+  .entry-preview {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-top: 4px;
+  }
+  .preview-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; line-height: 1.8;
+  }
+  .preview-row .pk { color: var(--text-3); }
+  .preview-row .pv { color: var(--text-2); font-weight: 500; }
+  .preview-row.highlight .pv { color: var(--accent); font-size: 13px; font-weight: 500; }
+  .preview-divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .preview-empty { color: var(--text-3); font-size: 11px; font-style: italic; }
+
+  /* Buttons */
+  .btn {
+    width: 100%; padding: 10px;
+    border-radius: var(--radius); border: none;
+    font-family: var(--font-mono); font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all var(--transition);
+    font-weight: 500;
+  }
+  .btn-primary {
+    background: var(--accent); color: #0d0f11;
+  }
+  .btn-primary:hover { background: #f0d060; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost {
+    background: var(--bg-3); color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg-4); color: var(--text-1); }
+  .btn-danger {
+    background: var(--red-dim); color: var(--red);
+    border: 1px solid rgba(248,113,113,0.15);
+  }
+  .btn-danger:hover { background: rgba(248,113,113,0.18); }
+  .btn-sm {
+    padding: 5px 12px; width: auto; font-size: 11px;
+  }
+
+  /* ─── MAIN CONTENT ────────────────────────────── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: var(--bg-0);
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+  }
+  .stat-label { font-size: 10px; color: var(--text-3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--text-1); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+
+  /* Client group */
+  .client-group {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .client-header {
+    display: flex; align-items: center;
+    padding: 14px 18px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .client-name {
+    font-family: var(--font-display);
+    font-size: 15px; font-weight: 700;
+    color: var(--text-1); flex: 1;
+  }
+  .client-meta { font-size: 11px; color: var(--text-3); display: flex; gap: 16px; }
+  .client-meta span { display: flex; align-items: center; gap: 4px; }
+  .client-total {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* Entry table */
+  .entry-table { width: 100%; border-collapse: collapse; }
+  .entry-table th {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-3); padding: 10px 18px; text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .entry-table td {
+    padding: 11px 18px; font-size: 12px; color: var(--text-2);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+  .entry-table tr:last-child td { border-bottom: none; }
+  .entry-table tr:hover td { background: rgba(255,255,255,0.015); }
+  .entry-table .date-cell { color: var(--text-1); font-weight: 500; white-space: nowrap; }
+  .entry-table .desc-cell { color: var(--text-2); max-width: 280px; }
+  .entry-table .hours-cell { color: var(--text-1); text-align: right; white-space: nowrap; }
+  .entry-table .amount-cell { color: var(--accent); text-align: right; font-weight: 500; white-space: nowrap; }
+  .entry-table .action-cell { text-align: right; }
+  .del-btn {
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; font-size: 16px; padding: 2px 6px;
+    border-radius: 4px; transition: all var(--transition);
+    line-height: 1;
+  }
+  .del-btn:hover { background: var(--red-dim); color: var(--red); }
+
+  /* Client footer with invoice gen */
+  .client-footer {
+    padding: 14px 18px;
+    background: var(--bg-0);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .mark-invoiced-btn {
+    background: var(--green-dim); color: var(--green);
+    border: 1px solid rgba(74,222,128,0.2);
+    border-radius: var(--radius); padding: 7px 14px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all var(--transition); font-weight: 500;
+  }
+  .mark-invoiced-btn:hover { background: rgba(74,222,128,0.18); }
+  .gen-report-btn {
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid rgba(232,197,71,0.2);
+    border-radius: var(--radius); padding: 7px 14px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all var(--transition); font-weight: 500;
+  }
+  .gen-report-btn:hover { background: rgba(232,197,71,0.18); }
+
+  /* Invoice report modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+    display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-2);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius-lg);
+    width: 100%; max-width: 600px;
+    max-height: 80vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 700; flex: 1;
+  }
+  .modal-close {
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; font-size: 20px; padding: 0 4px;
+    transition: color var(--transition);
+  }
+  .modal-close:hover { color: var(--text-1); }
+  .modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+  .invoice-block {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 12px; line-height: 1.8;
+    color: var(--text-1);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .modal-footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px;
+  }
+  .copy-success { color: var(--green); font-size: 12px; margin-left: auto; align-self: center; opacity: 0; transition: opacity 0.3s; }
+  .copy-success.show { opacity: 1; }
+
+  /* ─── HISTORY VIEW ────────────────────────────── */
+  /* Sort solution: dates stored as YYYY-MM-DD internally,
+     displayed as MM-DD-YYYY. Sort on the stored value, render the display. */
+  .history-controls {
+    display: flex; gap: 10px; margin-bottom: 20px; align-items: center;
+  }
+  .history-controls .field { margin: 0; flex: 1; }
+  .invoice-history-item {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .invoice-history-header {
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: background var(--transition);
+  }
+  .invoice-history-header:hover { background: var(--bg-2); }
+  .inv-badge {
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 5px; padding: 3px 8px;
+    font-size: 10px; color: var(--text-3);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .inv-date { font-size: 12px; color: var(--text-2); }
+  .inv-client { font-family: var(--font-display); font-size: 14px; font-weight: 600; flex: 1; }
+  .inv-amount { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--accent); }
+  .inv-chevron { color: var(--text-3); font-size: 12px; transition: transform var(--transition); }
+  .invoice-history-item.open .inv-chevron { transform: rotate(180deg); }
+  .inv-entries { display: none; }
+  .invoice-history-item.open .inv-entries { display: block; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-3);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 13px; }
+
+  /* Settings view */
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 560px; }
+  .settings-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+  .settings-card h3 {
+    font-family: var(--font-display); font-size: 13px; font-weight: 600;
+    margin-bottom: 14px; color: var(--text-1);
+  }
+  .client-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; margin: 3px;
+    font-size: 11px; color: var(--text-2);
+  }
+  .client-tag button {
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 0;
+    transition: color var(--transition);
+  }
+  .client-tag button:hover { color: var(--red); }
+  .clients-wrap { min-height: 40px; margin-bottom: 10px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--bg-3); border: 1px solid var(--border-active);
+    border-radius: 8px; padding: 10px 18px;
+    font-size: 12px; color: var(--text-1);
+    opacity: 0; pointer-events: none;
+    transition: all 0.25s;
+    z-index: 9998; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: rgba(74,222,128,0.3); color: var(--green); }
+  #toast.error { border-color: rgba(248,113,113,0.3); color: var(--red); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg-5); border-radius: 10px; }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .entry-table tr { animation: fadeIn 0.2s ease; }
+  .client-group { animation: fadeIn 0.25s ease; }
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lock-screen">
+  <div class="lock-logo">Ledger<span>.</span></div>
+  <div class="lock-card">
+    <div>
+      <label>PIN</label>
+      <input type="password" id="pin-input" placeholder="••••" maxlength="8" autofocus>
+    </div>
+    <div id="lock-error">Incorrect PIN. Try again.</div>
+    <div id="lock-hint" style="font-size:11px;color:var(--text-3)">Default PIN: 1234 — change in Settings</div>
+    <button class="btn btn-primary" onclick="attemptUnlock()">Unlock</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">Ledger<span>.</span></div>
+  <div class="header-divider"></div>
+  <nav class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('pending')">Pending</button>
+    <button class="tab-btn" onclick="switchTab('history')">History</button>
+    <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+  </nav>
+  <div class="header-right">
+    <div class="rate-badge">Rate: <strong id="rate-display">$0/hr</strong></div>
+    <button id="lock-btn" onclick="lockApp()">⚿ Lock</button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- SIDEBAR: Single-Tap Logger -->
+  <aside>
+    <div class="sidebar-section">
+      <div class="section-label">New Entry</div>
+
+      <div class="field">
+        <label>Client</label>
+        <select id="e-client">
+          <option value="">— select client —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Date</label>
+        <div class="quick-picks">
+          <button class="qp-btn active" id="qp-today" onclick="setQuickDate('today')">Today</button>
+          <button class="qp-btn" id="qp-yesterday" onclick="setQuickDate('yesterday')">Yesterday</button>
+        </div>
+        <input type="text" id="e-date" placeholder="MM-DD-YYYY" maxlength="10" oninput="formatDateInput(this); updatePreview()">
+      </div>
+
+      <div class="field">
+        <label>Time Range</label>
+        <div class="time-row">
+          <div class="time-field">
+            <label>Start</label>
+            <div class="time-input-wrap">
+              <input type="text" id="e-start-h" placeholder="9" maxlength="2" oninput="updatePreview()">
+              <span class="time-sep">:</span>
+              <input type="text" id="e-start-m" placeholder="00" maxlength="2" oninput="updatePreview()">
+              <div class="ampm-toggle">
+                <button class="ampm-btn active" id="start-am" onclick="toggleAmPm('start','AM')">AM</button>
+                <button class="ampm-btn" id="start-pm" onclick="toggleAmPm('start','PM')">PM</button>
+              </div>
+            </div>
+          </div>
+          <div class="time-field">
+            <label>End</label>
+            <div class="time-input-wrap">
+              <input type="text" id="e-end-h" placeholder="5" maxlength="2" oninput="updatePreview()">
+              <span class="time-sep">:</span>
+              <input type="text" id="e-end-m" placeholder="00" maxlength="2" oninput="updatePreview()">
+              <div class="ampm-toggle">
+                <button class="ampm-btn" id="end-am" onclick="toggleAmPm('end','AM')">AM</button>
+                <button class="ampm-btn active" id="end-pm" onclick="toggleAmPm('end','PM')">PM</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Lunch Break (min)</label>
+        <select id="e-lunch" onchange="updatePreview()">
+          <option value="0">None</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60" selected>60 min</option>
+          <option value="90">90 min</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Description <span style="color:var(--text-3);font-size:10px">(optional)</span></label>
+        <textarea id="e-desc" rows="3" placeholder="UI revisions, client call, brand assets… (optional)" oninput="updatePreview()"></textarea>
+      </div>
+    </div>
+
+    <!-- LIVE ENTRY PREVIEW
+         Design rationale: 3-row data grid. All same font size (11px).
+         Accent color on the dollar amount signals importance without bulk.
+         "Compact but scannable" — you know instantly if the hours look right. -->
+    <div class="sidebar-section">
+      <div class="section-label">Live Preview</div>
+      <div class="entry-preview" id="live-preview">
+        <div class="preview-empty">Fill in details above to see a preview.</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <button class="btn btn-primary" onclick="saveEntry()">+ Log Entry</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+    </div>
+  </aside>
+
+  <!-- MAIN: Views -->
+  <main>
+    <!-- PENDING VIEW -->
+    <div class="view active" id="view-pending">
+      <div class="stats-row" id="stats-row"></div>
+      <div id="pending-content"></div>
+    </div>
+
+    <!-- HISTORY VIEW -->
+    <div class="view" id="view-history">
+      <div class="history-controls">
+        <div class="field">
+          <select id="hist-client-filter" onchange="renderHistory()">
+            <option value="">All Clients</option>
+          </select>
+        </div>
+        <div class="field" style="flex:0.5">
+          <select id="hist-sort" onchange="renderHistory()">
+            <option value="desc">Newest First</option>
+            <option value="asc">Oldest First</option>
+          </select>
+        </div>
+      </div>
+      <div id="history-content"></div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="view-settings">
+      <div class="settings-grid">
+        <div class="settings-card" style="grid-column:1/-1;border-color:rgba(232,197,71,0.25)">
+          <h3 style="color:var(--accent)">⚙ Google Sheets Connection</h3>
+          <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">Paste your Apps Script Web App URL here. Deploy the Code.gs file first.</p>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div class="field" style="margin:0;flex:1">
+              <label>Apps Script URL</label>
+              <input type="text" id="s-script-url" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:11px">
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="saveScriptUrl()" style="height:36px;padding:0 14px;white-space:nowrap">Save & Test</button>
+          </div>
+          <div id="url-status" style="font-size:11px;color:var(--text-3);margin-top:8px"></div>
+        </div>
+        <div class="settings-card" style="grid-column:1/-1">
+          <h3>Hourly Rate</h3>
+          <div class="field" style="max-width:200px">
+            <label>Rate ($/hr)</label>
+            <input type="number" id="s-rate" min="0" step="0.5" placeholder="75" oninput="saveSettings()">
+          </div>
+        </div>
+        <div class="settings-card" style="grid-column:1/-1">
+          <h3>Clients &amp; Rates</h3>
+          <p style="font-size:11px;color:var(--text-3);margin-bottom:14px">Each client can have their own rate. Leave blank to use the default rate above.</p>
+          <div class="clients-wrap" id="clients-wrap"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input type="text" id="new-client-input" placeholder="Client name" style="flex:2;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:13px;padding:7px 10px;outline:none;" onkeydown="if(event.key==='Enter')addClient()">
+            <div style="position:relative;flex:1">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:12px;pointer-events:none">$</span>
+              <input type="number" id="new-client-rate" placeholder="Rate/hr" min="0" step="0.5" style="width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:13px;padding:7px 10px 7px 20px;outline:none;">
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="addClient()" style="white-space:nowrap">Add Client</button>
+          </div>
+        </div>
+        <div class="settings-card" style="grid-column:1/-1">
+          <h3>Security PIN</h3>
+          <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">PIN is stored locally. Leave blank to keep current.</p>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div class="field" style="margin:0;flex:1">
+              <label>New PIN</label>
+              <input type="password" id="s-pin-new" placeholder="••••" maxlength="8">
+            </div>
+            <div class="field" style="margin:0;flex:1">
+              <label>Confirm PIN</label>
+              <input type="password" id="s-pin-confirm" placeholder="••••" maxlength="8">
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="savePin()" style="margin-bottom:0;height:36px;padding:0 14px">Save PIN</button>
+          </div>
+        </div>
+        <div class="settings-card" style="grid-column:1/-1">
+          <h3>Data Management</h3>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost btn-sm" onclick="exportData()">↓ Export JSON</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAllData()">⚠ Clear All Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Invoice Report Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Invoice Description</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">Copy this block directly into your Wave invoice description.</p>
+      <div class="invoice-block" id="invoice-block-text"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="copyInvoiceText()">Copy to Clipboard</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+      <span class="copy-success" id="copy-success">✓ Copied!</span>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// =============================================
+// CONFIG — loaded from localStorage so you can
+// set it via Settings without touching the file.
+// =============================================
+let SCRIPT_URL = localStorage.getItem('ledger_script_url') || 'YOUR_APPS_SCRIPT_URL_HERE';
+
+// =============================================
+// STATE
+// =============================================
+let state = {
+  pin: '1234',
+  rate: 75,           // default/fallback rate
+  clients: [],        // [{ name, rate }] — per-client rates
+  pending: [],
+  history: []
+};
+
+let startAmPm = 'AM', endAmPm = 'PM';
+let selectedDate = null;
+
+// =============================================
+// API LAYER
+// All reads/writes go through Google Sheets.
+// PIN + rate + clients are stored in Settings tab.
+// Pending entries live in Pending tab.
+// Invoiced batches live in History tab.
+// =============================================
+
+// Loading overlay helpers
+function showLoading(msg = 'Syncing…') {
+  let el = document.getElementById('loading-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = `
+      position:fixed;bottom:24px;right:24px;
+      background:var(--bg-3);border:1px solid var(--border-active);
+      border-radius:8px;padding:10px 16px;
+      font-size:12px;color:var(--text-2);
+      display:flex;align-items:center;gap:8px;z-index:9999;
+    `;
+    el.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite"></span><span id="loading-msg"></span>`;
+    document.body.appendChild(el);
+    if (!document.getElementById('spin-style')) {
+      const s = document.createElement('style');
+      s.id = 'spin-style';
+      s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+  }
+  document.getElementById('loading-msg').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function hideLoading() {
+  const el = document.getElementById('loading-overlay');
+  if (el) el.style.display = 'none';
+}
+
+// Core fetch wrapper — all calls POST to the same endpoint
+async function api(action, payload = {}) {
+  if (!SCRIPT_URL || SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+    throw new Error('SCRIPT_URL not configured. Open Settings and paste your Apps Script URL.');
+  }
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // text/plain avoids CORS preflight
+    body: JSON.stringify({ action, payload })
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Unknown API error');
+  return json.data;
+}
+
+// Load full state from Sheets on startup
+async function loadFromSheets() {
+  showLoading('Loading from Google Sheets…');
+  try {
+    const data = await api('loadAll');
+    state.pending  = data.pending  || [];
+    state.history  = data.history  || [];
+    state.rate     = data.rate     || 75;
+    state.pin      = data.pin      || '1234';
+    // Migrate legacy string-format clients to {name, rate} objects
+    state.clients = (data.clients || []).map(c => typeof c === 'string' ? { name: c, rate: null } : c);
+    // Also persist PIN locally so lock screen works offline
+    localStorage.setItem('ledger_pin', state.pin);
+  } catch(e) {
+    // Fallback: if Sheets unreachable, try local cache
+    const cached = localStorage.getItem('ledger_cache');
+    if (cached) {
+      try { Object.assign(state, JSON.parse(cached)); } catch(_) {}
+      showToast('Offline — showing cached data', 'error');
+    } else {
+      showToast('Cannot reach Google Sheets. Check SCRIPT_URL.', 'error');
+    }
+  } finally {
+    hideLoading();
+  }
+}
+
+// Write local state to localStorage as a read-only cache
+function updateCache() {
+  localStorage.setItem('ledger_cache', JSON.stringify({
+    pending: state.pending,
+    history: state.history,
+    rate: state.rate,
+    clients: state.clients
+    // PIN intentionally excluded from cache (stored separately)
+  }));
+}
+
+// =============================================
+// LOCK / UNLOCK
+// PIN is verified against state.pin which comes
+// from Google Sheets. On first load before Sheets
+// is reachable we fall back to localStorage copy.
+// =============================================
+function getStoredPin() {
+  return localStorage.getItem('ledger_pin') || '1234';
+}
+
+function attemptUnlock() {
+  const pin = document.getElementById('pin-input').value;
+  const errEl = document.getElementById('lock-error');
+  // Use locally cached PIN for instant response (no network round-trip on lock screen)
+  const correctPin = state.pin !== '1234' ? state.pin : getStoredPin();
+  if (pin === correctPin) {
+    document.getElementById('lock-screen').style.display = 'none';
+    errEl.style.display = 'none';
+    sessionStorage.setItem('ledger_unlocked', '1');
+    init();
+  } else {
+    errEl.style.display = 'block';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') attemptUnlock();
+});
+
+function lockApp() {
+  sessionStorage.removeItem('ledger_unlocked');
+  location.reload();
+}
+
+// =============================================
+// INIT
+// =============================================
+async function init() {
+  // Populate URL field if already saved
+  const savedUrl = localStorage.getItem('ledger_script_url');
+  if (savedUrl) document.getElementById('s-script-url').value = savedUrl;
+
+  await loadFromSheets();
+  populateClients();
+  populateHistoryFilters();
+  setQuickDate('today');
+  document.getElementById('s-rate').value = state.rate;
+  document.getElementById('rate-display').textContent = `$${state.rate}/hr`;
+  renderClients();
+  renderPending();
+  renderHistory();
+  updateCache();
+}
+
+// =============================================
+// UTILITIES
+// =============================================
+function getClientRate(clientName) {
+  // Returns client-specific rate, or falls back to global default
+  const c = state.clients.find(c => c.name === clientName);
+  return (c && c.rate) ? c.rate : state.rate;
+}
+function toIso(displayDate) {
+  // MM-DD-YYYY → YYYY-MM-DD
+  if (!displayDate || displayDate.length !== 10) return '';
+  const [m, d, y] = displayDate.split('-');
+  return `${y}-${m}-${d}`;
+}
+
+function toDisplay(isoDate) {
+  // YYYY-MM-DD → MM-DD-YYYY
+  if (!isoDate || isoDate.length !== 10) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${m}-${d}-${y}`;
+}
+
+function todayIso() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+function yesterdayIso() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function timeToMin(h, m, ampm) {
+  let hour = parseInt(h) || 0;
+  let min = parseInt(m) || 0;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  if (ampm === 'PM' && hour !== 12) hour += 12;
+  return hour * 60 + min;
+}
+
+function minToDisplay(totalMin) {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function formatHours(h) {
+  return Number.isInteger(h) ? `${h}h` : `${h.toFixed(2)}h`;
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 2500);
+}
+
+// =============================================
+// DATE INPUT FORMATTING
+// =============================================
+function formatDateInput(input) {
+  let v = input.value.replace(/[^0-9]/g, '');
+  if (v.length > 2) v = v.slice(0,2) + '-' + v.slice(2);
+  if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5);
+  input.value = v.slice(0, 10);
+  if (v.length === 10) {
+    selectedDate = toIso(v);
+    document.getElementById('qp-today').classList.remove('active');
+    document.getElementById('qp-yesterday').classList.remove('active');
+  }
+}
+
+function setQuickDate(which) {
+  selectedDate = which === 'today' ? todayIso() : yesterdayIso();
+  document.getElementById('e-date').value = toDisplay(selectedDate);
+  document.getElementById('qp-today').classList.toggle('active', which === 'today');
+  document.getElementById('qp-yesterday').classList.toggle('active', which === 'yesterday');
+  updatePreview();
+}
+
+// =============================================
+// AM/PM TOGGLES
+// =============================================
+function toggleAmPm(which, val) {
+  if (which === 'start') {
+    startAmPm = val;
+    document.getElementById('start-am').classList.toggle('active', val === 'AM');
+    document.getElementById('start-pm').classList.toggle('active', val === 'PM');
+  } else {
+    endAmPm = val;
+    document.getElementById('end-am').classList.toggle('active', val === 'AM');
+    document.getElementById('end-pm').classList.toggle('active', val === 'PM');
+  }
+  updatePreview();
+}
+
+// =============================================
+// LIVE PREVIEW
+// =============================================
+function updatePreview() {
+  const sh = document.getElementById('e-start-h').value;
+  const sm = document.getElementById('e-start-m').value;
+  const eh = document.getElementById('e-end-h').value;
+  const em = document.getElementById('e-end-m').value;
+  const lunch = parseInt(document.getElementById('e-lunch').value) || 0;
+  const desc = document.getElementById('e-desc').value.trim();
+  const date = document.getElementById('e-date').value;
+  const preview = document.getElementById('live-preview');
+
+  if (!sh || !eh) {
+    preview.innerHTML = '<div class="preview-empty">Fill start/end time to preview.</div>';
+    return;
+  }
+
+  const startMin = timeToMin(sh, sm || '0', startAmPm);
+  const endMin = timeToMin(eh, em || '0', endAmPm);
+  const rawMin = endMin - startMin;
+
+  if (rawMin <= 0) {
+    preview.innerHTML = '<div class="preview-empty">End time must be after start.</div>';
+    return;
+  }
+
+  const billableMin = rawMin - lunch;
+  const billableH = billableMin / 60;
+  const selectedClient = document.getElementById('e-client').value;
+  const effectiveRate = getClientRate(selectedClient);
+  const amount = billableH * effectiveRate;
+
+  preview.innerHTML = `
+    <div class="preview-row">
+      <span class="pk">Date</span>
+      <span class="pv">${date || '—'}</span>
+    </div>
+    <div class="preview-row">
+      <span class="pk">Hours</span>
+      <span class="pv">${minToDisplay(startMin)} → ${minToDisplay(endMin)}${lunch > 0 ? ` (−${lunch}m lunch)` : ''}</span>
+    </div>
+    <div class="preview-divider"></div>
+    <div class="preview-row">
+      <span class="pk">Billable</span>
+      <span class="pv">${formatHours(billableH)} @ $${effectiveRate}/hr</span>
+    </div>
+    <div class="preview-row highlight">
+      <span class="pk">Total</span>
+      <span class="pv">$${amount.toFixed(2)}</span>
+    </div>
+    ${desc ? `<div class="preview-divider"></div><div class="preview-row"><span class="pk" style="max-width:50px">Desc</span><span class="pv" style="text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc}</span></div>` : ''}
+  `;
+}
+
+// =============================================
+// SAVE ENTRY
+// =============================================
+async function saveEntry() {
+  const client = document.getElementById('e-client').value;
+  const date = document.getElementById('e-date').value;
+  const sh = document.getElementById('e-start-h').value;
+  const sm = document.getElementById('e-start-m').value || '0';
+  const eh = document.getElementById('e-end-h').value;
+  const em = document.getElementById('e-end-m').value || '0';
+  const lunch = parseInt(document.getElementById('e-lunch').value) || 0;
+  const desc = document.getElementById('e-desc').value.trim();
+
+  if (!client) { showToast('Select a client.', 'error'); return; }
+  if (!date || date.length !== 10) { showToast('Enter a valid date (MM-DD-YYYY).', 'error'); return; }
+  if (!sh || !eh) { showToast('Enter start and end times.', 'error'); return; }
+
+  const startMin = timeToMin(sh, sm, startAmPm);
+  const endMin = timeToMin(eh, em, endAmPm);
+  if (endMin <= startMin) { showToast('End time must be after start.', 'error'); return; }
+
+  const isoDate = toIso(date);
+  const entry = { id: uid(), client, date: isoDate, startMin, endMin, lunchMin: lunch, desc };
+
+  showLoading('Saving to Sheets…');
+  try {
+    await api('addEntry', entry);
+    state.pending.push(entry);
+    updateCache();
+    renderPending();
+    clearForm();
+    showToast('Entry logged.', 'success');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+function clearForm() {
+  document.getElementById('e-client').value = '';
+  document.getElementById('e-start-h').value = '';
+  document.getElementById('e-start-m').value = '';
+  document.getElementById('e-end-h').value = '';
+  document.getElementById('e-end-m').value = '';
+  document.getElementById('e-lunch').value = '60';
+  document.getElementById('e-desc').value = '';
+  startAmPm = 'AM'; endAmPm = 'PM';
+  toggleAmPm('start','AM'); toggleAmPm('end','PM');
+  setQuickDate('today');
+  updatePreview();
+}
+
+// =============================================
+// RENDER PENDING
+// =============================================
+function renderPending() {
+  const container = document.getElementById('pending-content');
+  const statsRow = document.getElementById('stats-row');
+
+  if (!state.pending.length) {
+    statsRow.innerHTML = '';
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><p>No pending entries. Log your first entry →</p></div>';
+    return;
+  }
+
+  // Group by client
+  const byClient = {};
+  let totalHours = 0, totalAmount = 0, totalEntries = state.pending.length;
+  for (const e of state.pending) {
+    if (!byClient[e.client]) byClient[e.client] = [];
+    byClient[e.client].push(e);
+  }
+
+  // Stats
+  for (const e of state.pending) {
+    const h = (e.endMin - e.startMin - e.lunchMin) / 60;
+    totalHours += h;
+    totalAmount += h * getClientRate(e.client);
+  }
+  const uniqueClients = Object.keys(byClient).length;
+
+  statsRow.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Pending Entries</div><div class="stat-value">${totalEntries}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Hours</div><div class="stat-value">${formatHours(totalHours)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Unbilled</div><div class="stat-value accent">$${totalAmount.toFixed(2)}</div></div>
+    <div class="stat-card"><div class="stat-label">Clients</div><div class="stat-value">${uniqueClients}</div></div>
+  `;
+
+  container.innerHTML = '';
+  for (const [client, entries] of Object.entries(byClient)) {
+    // Sort entries newest first (ISO sort works correctly on YYYY-MM-DD)
+    const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+    const clientRate = getClientRate(client);
+    let clientH = 0, clientAmt = 0;
+    for (const e of sorted) {
+      const h = (e.endMin - e.startMin - e.lunchMin) / 60;
+      clientH += h; clientAmt += h * clientRate;
+    }
+
+    const rows = sorted.map(e => {
+      const h = (e.endMin - e.startMin - e.lunchMin) / 60;
+      const amt = h * clientRate;
+      return `<tr>
+        <td class="date-cell">${toDisplay(e.date)}</td>
+        <td>${minToDisplay(e.startMin)} – ${minToDisplay(e.endMin)}${e.lunchMin > 0 ? ` (−${e.lunchMin}m)` : ''}</td>
+        <td class="desc-cell">${e.desc}</td>
+        <td class="hours-cell">${formatHours(h)}</td>
+        <td class="amount-cell">$${amt.toFixed(2)}</td>
+        <td class="action-cell"><button class="del-btn" onclick="deleteEntry('${e.id}')" title="Delete">×</button></td>
+      </tr>`;
+    }).join('');
+
+    const group = document.createElement('div');
+    group.className = 'client-group';
+    group.innerHTML = `
+      <div class="client-header">
+        <div class="client-name">${client}</div>
+        <div class="client-meta">
+          <span>${sorted.length} entr${sorted.length === 1 ? 'y' : 'ies'}</span>
+          <span>${formatHours(clientH)}</span>
+          <span style="color:var(--accent);opacity:0.7">$${clientRate}/hr</span>
+        </div>
+        <div class="client-total">$${clientAmt.toFixed(2)}</div>
+      </div>
+      <table class="entry-table">
+        <thead><tr>
+          <th>Date</th><th>Time</th><th>Description</th>
+          <th style="text-align:right">Hours</th>
+          <th style="text-align:right">Amount</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="client-footer">
+        <button class="gen-report-btn" onclick="generateReport('${client}')">◈ Generate Invoice Text</button>
+        <button class="mark-invoiced-btn" onclick="markInvoiced('${client}')">✓ Mark as Invoiced</button>
+      </div>
+    `;
+    container.appendChild(group);
+  }
+}
+
+// =============================================
+// DELETE ENTRY
+// =============================================
+async function deleteEntry(id) {
+  showLoading('Deleting…');
+  try {
+    await api('deleteEntry', { id });
+    state.pending = state.pending.filter(e => e.id !== id);
+    updateCache();
+    renderPending();
+    showToast('Entry removed.');
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// =============================================
+// GENERATE INVOICE REPORT
+// =============================================
+function generateReport(client) {
+  const entries = state.pending.filter(e => e.client === client);
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const clientRate = getClientRate(client);
+
+  let totalH = 0, totalAmt = 0;
+  const lines = sorted.map(e => {
+    const h = (e.endMin - e.startMin - e.lunchMin) / 60;
+    totalH += h;
+    const amt = h * clientRate;
+    totalAmt += amt;
+    const descPart = e.desc ? `  |  ${e.desc}` : '';
+    return `  ${toDisplay(e.date)}  |  ${formatHours(h).padEnd(6)}${descPart}`;
+  });
+
+  const divider = '─'.repeat(58);
+  const text = [
+    `INVOICE DESCRIPTION — ${client.toUpperCase()}`,
+    divider,
+    ...lines,
+    divider,
+    `  Total Hours: ${formatHours(totalH)}`,
+    `  Rate:        $${clientRate}/hr`,
+    `  TOTAL DUE:   $${totalAmt.toFixed(2)}`,
+    divider
+  ].join('\n');
+
+  document.getElementById('invoice-block-text').textContent = text;
+  document.getElementById('modal-title').textContent = `Invoice — ${client}`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyInvoiceText() {
+  const text = document.getElementById('invoice-block-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('copy-success');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+  });
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// =============================================
+// MARK AS INVOICED
+// =============================================
+async function markInvoiced(client) {
+  if (!confirm(`Move all pending entries for "${client}" to history? This cannot be undone.`)) return;
+
+  showLoading('Moving to history…');
+  try {
+    const rateUsed = getClientRate(client);
+    const result = await api('markInvoiced', { client, rate_used: rateUsed });
+    // Reload full state so history is accurate
+    const fresh = await api('loadAll');
+    state.pending  = fresh.pending  || [];
+    state.history  = fresh.history  || [];
+    updateCache();
+    renderPending();
+    renderHistory();
+    populateHistoryFilters();
+    showToast(`${result.count} entries invoiced ($${result.total}).`, 'success');
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// =============================================
+// RENDER HISTORY
+// Sorting: history items sorted by date_invoiced (YYYY-MM-DD — ISO-safe string compare)
+// =============================================
+function renderHistory() {
+  const container = document.getElementById('history-content');
+  const clientFilter = document.getElementById('hist-client-filter').value;
+  const sortDir = document.getElementById('hist-sort').value;
+
+  let items = [...state.history];
+  if (clientFilter) items = items.filter(h => h.client === clientFilter);
+  items.sort((a, b) => {
+    return sortDir === 'desc'
+      ? b.date_invoiced.localeCompare(a.date_invoiced)
+      : a.date_invoiced.localeCompare(b.date_invoiced);
+  });
+
+  if (!items.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">◉</div><p>No invoiced history yet.</p></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  items.forEach((inv, i) => {
+    const sorted = [...inv.entries].sort((a, b) => b.date.localeCompare(a.date));
+    const invRate = inv.rate_used || state.rate;
+    const rows = sorted.map(e => {
+      const h = (e.endMin - e.startMin - e.lunchMin) / 60;
+      return `<tr>
+        <td class="date-cell">${toDisplay(e.date)}</td>
+        <td class="desc-cell">${e.desc || '—'}</td>
+        <td class="hours-cell">${formatHours(h)}</td>
+        <td class="amount-cell">$${(h * invRate).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    const item = document.createElement('div');
+    item.className = 'invoice-history-item';
+    item.innerHTML = `
+      <div class="invoice-history-header" onclick="this.parentElement.classList.toggle('open')">
+        <span class="inv-badge">INV-${String(state.history.indexOf(inv)+1).padStart(3,'0')}</span>
+        <span class="inv-client">${inv.client}</span>
+        <span class="inv-date">Invoiced ${toDisplay(inv.date_invoiced)}</span>
+        <span class="inv-amount">$${inv.total.toFixed(2)}</span>
+        <span class="inv-chevron">▾</span>
+      </div>
+      <div class="inv-entries">
+        <table class="entry-table">
+          <thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Hours</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+// =============================================
+// SETTINGS
+// =============================================
+function populateClients() {
+  const sel = document.getElementById('e-client');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— select client —</option>';
+  for (const c of state.clients) {
+    const o = document.createElement('option');
+    const clientName = typeof c === 'string' ? c : c.name;
+    o.value = clientName;
+    const rate = (typeof c === 'object' && c.rate) ? c.rate : state.rate;
+    o.textContent = `${clientName}  ($${rate}/hr)`;
+    sel.appendChild(o);
+  }
+  sel.value = current;
+}
+
+function populateHistoryFilters() {
+  const sel = document.getElementById('hist-client-filter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All Clients</option>';
+  const clients = [...new Set(state.history.map(h => h.client))];
+  for (const c of clients) {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  }
+  try { sel.value = current; } catch(e) {}
+}
+
+function renderClients() {
+  const wrap = document.getElementById('clients-wrap');
+  if (!state.clients.length) {
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:8px 0">No clients added yet.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:4px">
+      <thead>
+        <tr>
+          <th style="font-size:10px;color:var(--text-3);letter-spacing:0.08em;text-transform:uppercase;text-align:left;padding:0 0 8px 0;font-weight:500">Client</th>
+          <th style="font-size:10px;color:var(--text-3);letter-spacing:0.08em;text-transform:uppercase;text-align:left;padding:0 0 8px 0;font-weight:500">Rate / hr</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.clients.map(c => `
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 0;font-size:13px;color:var(--text-1)">${c.name}</td>
+            <td style="padding:10px 12px 10px 0">
+              <div style="position:relative;max-width:110px">
+                <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:12px;pointer-events:none">$</span>
+                <input type="number" value="${c.rate || ''}" placeholder="${state.rate}" min="0" step="0.5"
+                  style="width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-1);font-family:var(--font-mono);font-size:12px;padding:5px 8px 5px 18px;outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,0.3)"
+                  onchange="updateClientRate('${c.name}', this.value)"
+                  onfocus="this.style.borderColor='var(--border-active)'"
+                  onblur="this.style.borderColor='var(--border)'">
+              </div>
+            </td>
+            <td style="padding:10px 0;text-align:right">
+              <button onclick="removeClient('${c.name}')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;transition:all 0.18s" onmouseover="this.style.color='var(--red)';this.style.background='var(--red-dim)'" onmouseout="this.style.color='var(--text-3)';this.style.background='none'">×</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function addClient() {
+  const input = document.getElementById('new-client-input');
+  const rateInput = document.getElementById('new-client-rate');
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.clients.find(c => c.name === name)) { showToast('Client already exists.', 'error'); return; }
+  const rate = parseFloat(rateInput.value) || null;
+  const newClient = { name, rate };
+  state.clients.push(newClient);
+  input.value = ''; rateInput.value = '';
+  showLoading('Saving…');
+  try {
+    await api('saveSettings', { clients: state.clients });
+    updateCache();
+    populateClients();
+    renderClients();
+    showToast(`"${name}" added${rate ? ` at $${rate}/hr` : ' (default rate)'}.`, 'success');
+  } catch(e) {
+    state.clients.pop();
+    showToast('Save failed: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function updateClientRate(name, newRate) {
+  const c = state.clients.find(c => c.name === name);
+  if (!c) return;
+  c.rate = parseFloat(newRate) || null;
+  try {
+    await api('saveSettings', { clients: state.clients });
+    updateCache();
+    populateClients();
+    document.getElementById('rate-display').textContent = `$${state.rate}/hr`;
+    showToast(`Rate updated for ${name}.`, 'success');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function removeClient(name) {
+  if (state.pending.some(e => e.client === name)) {
+    showToast('Cannot remove — client has pending entries.', 'error');
+    return;
+  }
+  state.clients = state.clients.filter(c => c.name !== name);
+  showLoading('Saving…');
+  try {
+    await api('saveSettings', { clients: state.clients });
+    updateCache();
+    populateClients();
+    renderClients();
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function saveSettings() {
+  const rate = parseFloat(document.getElementById('s-rate').value);
+  if (!isNaN(rate) && rate >= 0) {
+    state.rate = rate;
+    document.getElementById('rate-display').textContent = `$${rate}/hr`;
+    try {
+      await api('saveSettings', { rate });
+      updateCache();
+    } catch(e) { /* non-blocking — rate already updated in UI */ }
+  }
+}
+
+async function savePin() {
+  const np = document.getElementById('s-pin-new').value;
+  const cp = document.getElementById('s-pin-confirm').value;
+  if (!np) return;
+  if (np !== cp) { showToast('PINs do not match.', 'error'); return; }
+  if (np.length < 4) { showToast('PIN must be at least 4 digits.', 'error'); return; }
+  showLoading('Saving PIN…');
+  try {
+    await api('saveSettings', { pin: np });
+    state.pin = np;
+    localStorage.setItem('ledger_pin', np);
+    document.getElementById('s-pin-new').value = '';
+    document.getElementById('s-pin-confirm').value = '';
+    showToast('PIN updated.', 'success');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  } finally { hideLoading(); }
+}
+
+async function saveScriptUrl() {
+  const url = document.getElementById('s-script-url').value.trim();
+  const statusEl = document.getElementById('url-status');
+  if (!url || !url.startsWith('https://script.google.com')) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = '✗ Must be a https://script.google.com URL';
+    return;
+  }
+  SCRIPT_URL = url;
+  localStorage.setItem('ledger_script_url', url);
+  statusEl.style.color = 'var(--text-3)';
+  statusEl.textContent = 'Testing connection…';
+  try {
+    await loadFromSheets();
+    populateClients();
+    renderClients();
+    renderPending();
+    renderHistory();
+    document.getElementById('s-rate').value = state.rate;
+    document.getElementById('rate-display').textContent = `$${state.rate}/hr`;
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = '✓ Connected successfully!';
+  } catch(e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = '✗ Connection failed: ' + e.message;
+  }
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ledger-export-${todayIso()}.json`;
+  a.click();
+}
+
+function clearAllData() {
+  if (!confirm('This will clear your local cache. Data in Google Sheets is unaffected.\n\nTo wipe Sheets data, delete rows manually.')) return;
+  localStorage.removeItem('ledger_cache');
+  localStorage.removeItem('ledger_pin');
+  sessionStorage.removeItem('ledger_unlocked');
+  location.reload();
+}
+
+// =============================================
+// TAB NAVIGATION
+// =============================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+  document.getElementById(`view-${tab}`).classList.add('active');
+  if (tab === 'settings') { renderClients(); }
+  if (tab === 'history') { populateHistoryFilters(); renderHistory(); }
+}
+
+// =============================================
+// BOOT
+// PIN check uses cached local PIN for instant
+// response — no network round-trip on the lock screen.
+// =============================================
+if (sessionStorage.getItem('ledger_unlocked') === '1') {
+  document.getElementById('lock-screen').style.display = 'none';
+  init();
+}
+
+</script>
+</body>
+</html>

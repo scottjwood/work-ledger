@@ -996,20 +996,16 @@ async function api(action, payload = {}) {
     ...(API_TOKEN ? { token: API_TOKEN } : {})
   });
   const url = SCRIPT_URL + '?' + params.toString();
-  debugLog('→ GET ' + action, url);
   let res, text;
   try {
     res = await fetch(url, { method: 'GET', redirect: 'follow' });
     text = await res.text();
-    debugLog('← ' + res.status + ' ' + res.statusText, text.slice(0, 300));
   } catch(fetchErr) {
-    debugLog('✗ fetch() threw', fetchErr.message);
-    throw new Error('Network error — ' + fetchErr.message + '. Check browser console for details.');
+    throw new Error('Network error — ' + fetchErr.message);
   }
   let json;
   try { json = JSON.parse(text); }
   catch(e) {
-    debugLog('✗ JSON parse failed', text.slice(0, 300));
     throw new Error('Non-JSON response (status ' + res.status + '): ' + text.slice(0, 150));
   }
   if (!json.ok) throw new Error(json.error || 'Unknown API error');

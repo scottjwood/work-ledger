@@ -623,6 +623,183 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .entry-table tr { animation: fadeIn 0.2s ease; }
   .client-group { animation: fadeIn 0.25s ease; }
+
+  /* =============================================
+     RESPONSIVE — MOBILE LAYOUT
+     Strategy: bottom tab bar + slide-up drawer
+     for the log form. Main content goes full width.
+     Breakpoint: 700px
+  ============================================= */
+  @media (max-width: 700px) {
+
+    /* ── Root tweaks ── */
+    html { font-size: 13px; }
+
+    /* ── Lock screen ── */
+    #lock-screen .lock-card { width: calc(100vw - 40px); padding: 24px 20px; }
+
+    /* ── Header ── */
+    header {
+      height: 48px;
+      padding: 0 14px;
+      gap: 10px;
+    }
+    .logo { font-size: 15px; }
+    .header-divider { display: none; }
+    .tab-bar { display: none; } /* replaced by bottom nav */
+    .rate-badge { display: none; } /* shown inside drawer instead */
+    #lock-btn { font-size: 11px; padding: 4px 8px; }
+
+    /* ── Layout: stack vertically, sidebar hidden by default ── */
+    .app-body {
+      flex-direction: column;
+      height: calc(100vh - 48px);
+      overflow: visible;
+      position: relative;
+    }
+
+    /* ── Sidebar becomes a slide-up drawer ── */
+    aside {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      width: 100%;
+      height: 85vh;
+      max-height: 85vh;
+      border-right: none;
+      border-top: 1px solid var(--border-active);
+      border-radius: 20px 20px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 200;
+      overflow-y: auto;
+      box-shadow: 0 -20px 60px rgba(0,0,0,0.6);
+    }
+    aside.drawer-open {
+      transform: translateY(0);
+    }
+
+    /* Drawer handle bar */
+    aside::before {
+      content: '';
+      display: block;
+      width: 36px; height: 4px;
+      background: var(--bg-5);
+      border-radius: 2px;
+      margin: 12px auto 4px;
+      flex-shrink: 0;
+    }
+
+    /* Drawer overlay backdrop */
+    #drawer-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 199;
+    }
+    #drawer-backdrop.open { display: block; }
+
+    /* ── Main content full width ── */
+    main {
+      flex: 1;
+      width: 100%;
+      padding: 14px;
+      overflow-y: auto;
+      padding-bottom: 80px; /* space for bottom nav */
+    }
+
+    /* ── Stats row: 2x2 grid on mobile ── */
+    .stats-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .stat-card { padding: 12px 14px; }
+    .stat-value { font-size: 18px; }
+
+    /* ── Client group tables: hide time col, compress ── */
+    .entry-table th:nth-child(2),
+    .entry-table td:nth-child(2) { display: none; }
+    .entry-table th, .entry-table td { padding: 9px 10px; }
+    .client-header { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+    .client-meta { font-size: 10px; gap: 10px; }
+    .client-total { font-size: 16px; }
+    .client-footer { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .gen-report-btn, .mark-invoiced-btn { font-size: 10px; padding: 6px 10px; }
+
+    /* ── History ── */
+    .history-controls { flex-wrap: wrap; gap: 8px; }
+    .invoice-history-header { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    .inv-date { width: 100%; order: 10; font-size: 10px; }
+
+    /* ── Settings ── */
+    .settings-grid { grid-template-columns: 1fr; max-width: 100%; }
+
+    /* ── Modals: full screen on mobile ── */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal {
+      border-radius: 20px 20px 0 0;
+      max-height: 90vh;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* ── Calendar: full width ── */
+    .calendar { width: 100%; left: 0; right: 0; }
+
+    /* ── Bottom navigation bar ── */
+    #bottom-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: var(--bg-1);
+      border-top: 1px solid var(--border);
+      z-index: 198;
+      align-items: stretch;
+    }
+    .bnav-btn {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      background: none; border: none;
+      color: var(--text-3);
+      font-family: var(--font-mono);
+      font-size: 9px; letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .bnav-btn .bnav-icon { font-size: 18px; line-height: 1; }
+    .bnav-btn.active { color: var(--accent); }
+    .bnav-btn.log-btn {
+      color: #0d0f11;
+      background: var(--accent);
+      border-radius: 14px;
+      margin: 8px 6px;
+      flex: 1.2;
+      font-weight: 600;
+    }
+    .bnav-btn.log-btn .bnav-icon { font-size: 22px; }
+
+    /* ── Rate badge inside drawer header ── */
+    .drawer-rate {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px 12px;
+      font-size: 11px; color: var(--text-3);
+    }
+    .drawer-rate strong { color: var(--accent); }
+  }
+
+  /* Desktop: hide bottom nav and drawer backdrop */
+  @media (min-width: 701px) {
+    #bottom-nav { display: none; }
+    #drawer-backdrop { display: none !important; }
+  }
+
 </style>
 </head>
 <body>
@@ -661,7 +838,10 @@
   <!-- SIDEBAR: Single-Tap Logger -->
   <aside>
     <div class="sidebar-section">
-      <div class="section-label">New Entry</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="section-label" style="margin-bottom:0">New Entry</div>
+        <div style="font-size:11px;color:var(--text-3)">Rate: <strong style="color:var(--accent)" id="drawer-rate-display"></strong></div>
+      </div>
 
       <div class="field">
         <label>Client</label>
@@ -828,6 +1008,29 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- Mobile drawer backdrop -->
+<div id="drawer-backdrop" onclick="closeDrawer()"></div>
+
+<!-- Mobile bottom navigation -->
+<div id="bottom-nav">
+  <button class="bnav-btn" id="bnav-pending" onclick="mobileTab('pending')">
+    <span class="bnav-icon">◎</span>
+    Pending
+  </button>
+  <button class="bnav-btn log-btn" onclick="toggleDrawer()">
+    <span class="bnav-icon">+</span>
+    Log
+  </button>
+  <button class="bnav-btn" id="bnav-history" onclick="mobileTab('history')">
+    <span class="bnav-icon">◉</span>
+    History
+  </button>
+  <button class="bnav-btn" id="bnav-settings" onclick="mobileTab('settings')">
+    <span class="bnav-icon">⚙</span>
+    Settings
+  </button>
 </div>
 
 <!-- Invoice Report Modal -->
@@ -1149,6 +1352,7 @@ async function init() {
   renderPending();
   renderHistory();
   updateCache();
+  initMobileNav();
 }
 
 // =============================================
@@ -1338,6 +1542,7 @@ async function saveEntry() {
     renderPending();
     clearForm();
     showToast('Entry logged.', 'success');
+    mobilePostSave();
   } catch(e) {
     showToast('Save failed: ' + e.message, 'error');
   } finally {
@@ -2047,6 +2252,80 @@ async function saveEdit() {
     hideLoading();
   }
 }
+// =============================================
+// MOBILE — DRAWER + BOTTOM NAV
+// =============================================
+function isMobile() { return window.innerWidth <= 700; }
+
+function toggleDrawer() {
+  const aside = document.querySelector('aside');
+  if (aside.classList.contains('drawer-open')) {
+    closeDrawer();
+  } else {
+    openDrawer();
+  }
+}
+
+function openDrawer() {
+  document.querySelector('aside').classList.add('drawer-open');
+  document.getElementById('drawer-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Update rate display inside drawer
+  const el = document.getElementById('drawer-rate-display');
+  if (el) el.textContent = '$' + state.rate + '/hr';
+}
+
+function closeDrawer() {
+  document.querySelector('aside').classList.remove('drawer-open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function mobileTab(tab) {
+  // Update bottom nav active state
+  document.querySelectorAll('.bnav-btn[id^="bnav-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('bnav-' + tab);
+  if (btn) btn.classList.add('active');
+  // Switch the main view
+  switchTab(tab);
+  // Close drawer if open
+  if (isMobile()) closeDrawer();
+}
+
+// Swipe down on drawer to close
+(function() {
+  let startY = 0;
+  const aside = document.querySelector('aside');
+  aside.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+  aside.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    if (dy > 60) closeDrawer(); // swipe down 60px = close
+  }, { passive: true });
+})();
+
+// Close drawer when entry is saved successfully — patch saveEntry
+const _origClearForm = clearForm;
+// Override so drawer closes after successful log on mobile
+const _origSaveEntry = saveEntry;
+
+// After a successful save, close the drawer on mobile
+// We patch the toast to detect success implicitly via render
+function mobilePostSave() {
+  if (isMobile()) {
+    setTimeout(() => closeDrawer(), 300);
+  }
+}
+
+// Set initial active bottom nav on load
+function initMobileNav() {
+  if (isMobile()) {
+    const active = document.querySelector('.tab-btn.active');
+    const tab = active ? active.getAttribute('onclick').match(/'(\w+)'/)[1] : 'pending';
+    const btn = document.getElementById('bnav-' + tab);
+    if (btn) btn.classList.add('active');
+  }
+}
+
 </script>
 </body>
 </html>

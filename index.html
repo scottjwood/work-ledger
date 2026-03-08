@@ -612,6 +612,24 @@
   #toast.success { border-color: rgba(74,222,128,0.3); color: var(--green); }
   #toast.error { border-color: rgba(248,113,113,0.3); color: var(--red); }
 
+  /* ─── CONNECTION STATUS + OFFLINE QUEUE ─── */
+  #conn-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    transition: background 0.4s;
+    flex-shrink: 0;
+  }
+  #conn-dot.offline  { background: var(--red); }
+  #conn-dot.syncing  { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  #queue-badge {
+    background: var(--accent); color: #0d0f11;
+    font-size: 9px; font-weight: 700;
+    border-radius: 10px; padding: 1px 5px;
+    display: none; margin-left: 2px;
+  }
+  #queue-badge.visible { display: inline-block; }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -827,6 +845,10 @@
   </nav>
   <div class="header-right">
     <div class="rate-badge">Rate: <strong id="rate-display">$0/hr</strong></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-right:4px">
+      <div id="conn-dot" title="Connected"></div>
+      <span id="queue-badge" title="Pending offline writes"></span>
+    </div>
     <button id="lock-btn" onclick="lockApp()">⚿ Lock</button>
   </div>
 </header>
@@ -1146,12 +1168,105 @@ let state = {
 let selectedDate = null; // startAmPm/endAmPm removed — now read directly from select elements
 
 // =============================================
-// API LAYER
-// All reads/writes go through Google Sheets.
-// PIN + rate + clients are stored in Settings tab.
-// Pending entries live in Pending tab.
-// Invoiced batches live in History tab.
+// API LAYER + OFFLINE QUEUE
+// All writes are queued locally first, then
+// flushed to Google Sheets when online.
+// If offline, they sit in localStorage until
+// the next flush (on reconnect or next load).
 // =============================================
+
+// ── Connection state ──────────────────────────
+let isOnline = navigator.onLine;
+
+function setConnState(state) {
+  const dot = document.getElementById('conn-dot');
+  if (!dot) return;
+  dot.className = state; // 'online' | 'offline' | 'syncing'
+  dot.title = state === 'online'  ? 'Connected to Sheets'
+             : state === 'syncing' ? 'Syncing…'
+             : 'Offline — changes will sync when reconnected';
+}
+
+window.addEventListener('online',  () => { isOnline = true;  setConnState('online');  flushQueue(); });
+window.addEventListener('offline', () => { isOnline = false; setConnState('offline'); });
+
+// ── Offline write queue ───────────────────────
+const QUEUE_KEY = 'ledger_queue';
+
+function loadQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+}
+
+function saveQueue(q) {
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  const badge = document.getElementById('queue-badge');
+  if (!badge) return;
+  if (q.length > 0) {
+    badge.textContent = q.length;
+    badge.classList.add('visible');
+    badge.title = q.length + ' change' + (q.length > 1 ? 's' : '') + ' waiting to sync';
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+function enqueue(action, payload) {
+  const q = loadQueue();
+  q.push({ action, payload, queuedAt: Date.now() });
+  saveQueue(q);
+}
+
+async function flushQueue() {
+  const q = loadQueue();
+  if (!q.length) return;
+  if (!isOnline) return;
+
+  setConnState('syncing');
+  const failed = [];
+
+  for (const item of q) {
+    try {
+      await api(item.action, item.payload);
+    } catch(e) {
+      // Keep failed items — will retry next flush
+      failed.push(item);
+    }
+  }
+
+  saveQueue(failed);
+  setConnState(failed.length ? 'offline' : 'online');
+
+  if (failed.length < q.length) {
+    const synced = q.length - failed.length;
+    showToast(synced + ' offline change' + (synced > 1 ? 's' : '') + ' synced.', 'success');
+  }
+  if (failed.length) {
+    showToast(failed.length + ' change(s) failed to sync — will retry.', 'error');
+  }
+}
+
+// ── apiWrite: queue-aware write wrapper ──────
+// Use this for all mutating operations.
+// Applies the change to local state immediately,
+// then sends to Sheets (or queues if offline).
+async function apiWrite(action, payload) {
+  if (isOnline) {
+    setConnState('syncing');
+    try {
+      const result = await api(action, payload);
+      setConnState('online');
+      return result;
+    } catch(e) {
+      // Network failed mid-request — queue it
+      enqueue(action, payload);
+      setConnState('offline');
+      throw e;
+    }
+  } else {
+    enqueue(action, payload);
+    throw new Error('offline-queued');
+  }
+}
 
 // Loading overlay helpers
 function showLoading(msg = 'Syncing…') {
@@ -1329,7 +1444,11 @@ function lockApp() {
 // INIT
 // =============================================
 async function init() {
-
+  // Show initial connection state and flush any queued writes
+  setConnState(navigator.onLine ? 'online' : 'offline');
+  if (navigator.onLine) flushQueue();
+  // Refresh badge count from stored queue
+  saveQueue(loadQueue());
 
   // If state was already loaded by fetchAndCachePin (during unlock),
   // skip the redundant loadFromSheets call to save a round-trip.
@@ -1557,19 +1676,24 @@ async function saveEntry() {
   const isoDate = toIso(date);
   const entry = { id: uid(), client, date: isoDate, startMin, endMin, lunchMin: lunch, desc };
 
-  showLoading('Saving to Sheets…');
+  // Optimistically update local state first — UI responds instantly
+  state.pending.push(entry);
+  updateCache();
+  renderPending();
+  clearForm();
+  mobilePostSave();
+
+  // Then write to Sheets (or queue if offline)
   try {
-    await api('addEntry', entry);
-    state.pending.push(entry);
-    updateCache();
-    renderPending();
-    clearForm();
+    await apiWrite('addEntry', entry);
     showToast('Entry logged.', 'success');
-    mobilePostSave();
   } catch(e) {
-    showToast('Save failed: ' + e.message, 'error');
-  } finally {
-    hideLoading();
+    if (e.message === 'offline-queued') {
+      showToast('Saved locally — will sync when online.', 'success');
+    } else {
+      showToast('Sync failed — entry saved locally.', 'error');
+      enqueue('addEntry', entry); // ensure it's queued
+    }
   }
 }
 
@@ -1684,17 +1808,23 @@ function renderPending() {
 // DELETE ENTRY
 // =============================================
 async function deleteEntry(id) {
-  showLoading('Deleting…');
+  if (!confirm('Delete this entry?')) return;
+
+  // Optimistic removal
+  state.pending = state.pending.filter(e => e.id !== id);
+  updateCache();
+  renderPending();
+
   try {
-    await api('deleteEntry', { id });
-    state.pending = state.pending.filter(e => e.id !== id);
-    updateCache();
-    renderPending();
-    showToast('Entry removed.');
+    await apiWrite('deleteEntry', { id });
+    showToast('Entry deleted.', 'success');
   } catch(e) {
-    showToast('Delete failed: ' + e.message, 'error');
-  } finally {
-    hideLoading();
+    if (e.message === 'offline-queued') {
+      showToast('Deleted locally — will sync when online.', 'success');
+    } else {
+      showToast('Sync failed — deletion saved locally.', 'error');
+      enqueue('deleteEntry', { id });
+    }
   }
 }
 
@@ -2250,22 +2380,24 @@ async function saveEdit() {
     startMin, endMin, lunchMin: lunch, desc
   };
 
-  showLoading('Saving changes…');
+  // Optimistic local update
+  const idx = state.pending.findIndex(e => e.id === id);
+  if (idx !== -1) state.pending[idx] = updatedEntry;
+  updateCache();
+  renderPending();
+  closeEditModal();
+
+  // Atomic write via updateEntry — single row overwrite, no delete+re-insert
   try {
-    // Delete old + add new is the simplest atomic update via Apps Script
-    await api('deleteEntry', { id });
-    await api('addEntry', updatedEntry);
-    // Update local state
-    const idx = state.pending.findIndex(e => e.id === id);
-    if (idx !== -1) state.pending[idx] = updatedEntry;
-    updateCache();
-    renderPending();
-    closeEditModal();
+    await apiWrite('updateEntry', updatedEntry);
     showToast('Entry updated.', 'success');
   } catch(e) {
-    showToast('Update failed: ' + e.message, 'error');
-  } finally {
-    hideLoading();
+    if (e.message === 'offline-queued') {
+      showToast('Saved locally — will sync when online.', 'success');
+    } else {
+      showToast('Sync failed — update saved locally.', 'error');
+      enqueue('updateEntry', updatedEntry);
+    }
   }
 }
 // =============================================

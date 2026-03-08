@@ -751,7 +751,8 @@
     .settings-grid { grid-template-columns: 1fr; max-width: 100%; }
 
     /* ── Modals: full screen on mobile ── */
-    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal-overlay { display: none; padding: 0; align-items: flex-end; }
+    .modal-overlay.open { display: flex; }
     .modal {
       border-radius: 20px 20px 0 0;
       max-height: 90vh;

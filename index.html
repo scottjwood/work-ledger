@@ -231,33 +231,31 @@
   .qp-btn:hover { background: var(--bg-4); color: var(--text-1); }
   .qp-btn.active { background: var(--accent-dim); border-color: rgba(232,197,71,0.3); color: var(--accent); }
 
-  /* Time row */
+  /* Time row — select-based, no overflow */
   .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .time-field { position: relative; }
-  .time-field label { font-size: 11px; color: var(--text-2); margin-bottom: 5px; display: block; }
-  .time-input-wrap { display: flex; gap: 4px; align-items: center; }
-  .time-input-wrap input[type="text"] {
-    width: 54px; text-align: center;
+  .time-field > label { font-size: 11px; color: var(--text-2); margin-bottom: 5px; display: block; }
+  /* Three selects side by side: H | MM | AM/PM */
+  .time-selects { display: grid; grid-template-columns: 2fr 2fr 2.2fr; gap: 4px; }
+  .time-selects select {
+    width: 100%; min-width: 0;
     background: var(--bg-3); border: 1px solid var(--border);
     border-radius: var(--radius); color: var(--text-1);
     font-family: var(--font-mono); font-size: 13px;
-    padding: 8px 6px; outline: none;
+    padding: 8px 4px 8px 8px; outline: none; cursor: pointer;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.35);
     transition: border-color var(--transition), box-shadow var(--transition);
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%238c95a3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 5px center;
+    padding-right: 18px;
   }
-  .time-input-wrap input[type="text"]:focus {
+  .time-selects select:focus {
     border-color: var(--border-active);
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.35), 0 0 0 2px rgba(232,197,71,0.08);
   }
-  .ampm-toggle { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
-  .ampm-btn {
-    background: var(--bg-3); border: none; color: var(--text-3);
-    font-family: var(--font-mono); font-size: 11px;
-    padding: 6px 8px; cursor: pointer;
-    transition: all var(--transition);
-  }
-  .ampm-btn.active { background: var(--bg-5); color: var(--text-1); }
-  .time-sep { color: var(--text-3); font-size: 13px; }
+  .time-selects select option { background: var(--bg-3); }
 
   /* ENTRY PREVIEW — compact informational block
      Design: monospace data grid. 3 lines max. No giant numbers.
@@ -871,26 +869,24 @@
         <div class="time-row">
           <div class="time-field">
             <label>Start</label>
-            <div class="time-input-wrap">
-              <input type="text" id="e-start-h" placeholder="9" maxlength="2" oninput="updatePreview()">
-              <span class="time-sep">:</span>
-              <input type="text" id="e-start-m" placeholder="00" maxlength="2" oninput="updatePreview()">
-              <div class="ampm-toggle">
-                <button class="ampm-btn active" id="start-am" onclick="toggleAmPm('start','AM')">AM</button>
-                <button class="ampm-btn" id="start-pm" onclick="toggleAmPm('start','PM')">PM</button>
-              </div>
+            <div class="time-selects">
+              <select id="e-start-h" onchange="updatePreview()"></select>
+              <select id="e-start-m" onchange="updatePreview()"></select>
+              <select id="e-start-ampm" onchange="updatePreview()">
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
             </div>
           </div>
           <div class="time-field">
             <label>End</label>
-            <div class="time-input-wrap">
-              <input type="text" id="e-end-h" placeholder="5" maxlength="2" oninput="updatePreview()">
-              <span class="time-sep">:</span>
-              <input type="text" id="e-end-m" placeholder="00" maxlength="2" oninput="updatePreview()">
-              <div class="ampm-toggle">
-                <button class="ampm-btn" id="end-am" onclick="toggleAmPm('end','AM')">AM</button>
-                <button class="ampm-btn active" id="end-pm" onclick="toggleAmPm('end','PM')">PM</button>
-              </div>
+            <div class="time-selects">
+              <select id="e-end-h" onchange="updatePreview()"></select>
+              <select id="e-end-m" onchange="updatePreview()"></select>
+              <select id="e-end-ampm" onchange="updatePreview()">
+                <option value="AM">AM</option>
+                <option value="PM" selected>PM</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1080,25 +1076,25 @@
         <div class="time-row">
           <div class="time-field">
             <label>Start</label>
-            <div class="time-input-wrap">
-              <input type="text" id="edit-start-h" placeholder="9" maxlength="2">
-              <span class="time-sep">:</span>
-              <input type="text" id="edit-start-m" placeholder="00" maxlength="2">
-              <div class="ampm-toggle">
-                <button class="ampm-btn" id="edit-start-am" onclick="toggleEditAmPm('start','AM')">AM</button>
-                <button class="ampm-btn" id="edit-start-pm" onclick="toggleEditAmPm('start','PM')">PM</button>
+            <div class="time-selects">
+                <select id="edit-start-h"></select>
+                <select id="edit-start-m"></select>
+                <select id="edit-start-ampm">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
               </div>
             </div>
           </div>
           <div class="time-field">
             <label>End</label>
-            <div class="time-input-wrap">
-              <input type="text" id="edit-end-h" placeholder="5" maxlength="2">
-              <span class="time-sep">:</span>
-              <input type="text" id="edit-end-m" placeholder="00" maxlength="2">
-              <div class="ampm-toggle">
-                <button class="ampm-btn" id="edit-end-am" onclick="toggleEditAmPm('end','AM')">AM</button>
-                <button class="ampm-btn" id="edit-end-pm" onclick="toggleEditAmPm('end','PM')">PM</button>
+            <div class="time-selects">
+                <select id="edit-end-h"></select>
+                <select id="edit-end-m"></select>
+                <select id="edit-end-ampm">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1147,8 +1143,7 @@ let state = {
   history: []
 };
 
-let startAmPm = 'AM', endAmPm = 'PM';
-let selectedDate = null;
+let selectedDate = null; // startAmPm/endAmPm removed — now read directly from select elements
 
 // =============================================
 // API LAYER
@@ -1348,11 +1343,49 @@ async function init() {
   setQuickDate('today');
   document.getElementById('s-rate').value = state.rate;
   document.getElementById('rate-display').textContent = `$${state.rate}/hr`;
+  populateTimeSelects();
   renderClients();
   renderPending();
   renderHistory();
   updateCache();
   initMobileNav();
+}
+
+// Build hour and minute options for all time select elements
+function populateTimeSelects() {
+  const hourIds = ['e-start-h', 'e-end-h', 'edit-start-h', 'edit-end-h'];
+  const minIds  = ['e-start-m', 'e-end-m', 'edit-start-m', 'edit-end-m'];
+
+  hourIds.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let h = 1; h <= 12; h++) {
+      const o = document.createElement('option');
+      o.value = String(h); o.textContent = String(h);
+      sel.appendChild(o);
+    }
+  });
+
+  minIds.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '';
+    // 15-minute intervals — fast to tap, covers all common work times
+    ['00','15','30','45'].forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m;
+      sel.appendChild(o);
+    });
+  });
+
+  // Set sensible defaults for the sidebar form
+  document.getElementById('e-start-h').value    = '9';
+  document.getElementById('e-start-m').value    = '00';
+  document.getElementById('e-start-ampm').value = 'AM';
+  document.getElementById('e-end-h').value      = '5';
+  document.getElementById('e-end-m').value      = '00';
+  document.getElementById('e-end-ampm').value   = 'PM';
 }
 
 // =============================================
@@ -1439,21 +1472,7 @@ function setQuickDate(which) {
   updatePreview();
 }
 
-// =============================================
-// AM/PM TOGGLES
-// =============================================
-function toggleAmPm(which, val) {
-  if (which === 'start') {
-    startAmPm = val;
-    document.getElementById('start-am').classList.toggle('active', val === 'AM');
-    document.getElementById('start-pm').classList.toggle('active', val === 'PM');
-  } else {
-    endAmPm = val;
-    document.getElementById('end-am').classList.toggle('active', val === 'AM');
-    document.getElementById('end-pm').classList.toggle('active', val === 'PM');
-  }
-  updatePreview();
-}
+// AM/PM now handled by select elements — toggle functions removed
 
 // =============================================
 // LIVE PREVIEW
@@ -1461,8 +1480,10 @@ function toggleAmPm(which, val) {
 function updatePreview() {
   const sh = document.getElementById('e-start-h').value;
   const sm = document.getElementById('e-start-m').value;
+  const sAmPm = document.getElementById('e-start-ampm').value;
   const eh = document.getElementById('e-end-h').value;
   const em = document.getElementById('e-end-m').value;
+  const eAmPm = document.getElementById('e-end-ampm').value;
   const lunch = parseInt(document.getElementById('e-lunch').value) || 0;
   const desc = document.getElementById('e-desc').value.trim();
   const date = document.getElementById('e-date').value;
@@ -1473,8 +1494,8 @@ function updatePreview() {
     return;
   }
 
-  const startMin = timeToMin(sh, sm || '0', startAmPm);
-  const endMin = timeToMin(eh, em || '0', endAmPm);
+  const startMin = timeToMin(sh, sm || '0', sAmPm);
+  const endMin = timeToMin(eh, em || '0', eAmPm);
   const rawMin = endMin - startMin;
 
   if (rawMin <= 0) {
@@ -1518,8 +1539,10 @@ async function saveEntry() {
   const date = document.getElementById('e-date').value;
   const sh = document.getElementById('e-start-h').value;
   const sm = document.getElementById('e-start-m').value || '0';
+  const sAmPm = document.getElementById('e-start-ampm').value;
   const eh = document.getElementById('e-end-h').value;
   const em = document.getElementById('e-end-m').value || '0';
+  const eAmPm = document.getElementById('e-end-ampm').value;
   const lunch = parseInt(document.getElementById('e-lunch').value) || 0;
   const desc = document.getElementById('e-desc').value.trim();
 
@@ -1527,8 +1550,8 @@ async function saveEntry() {
   if (!date || date.length !== 10) { showToast('Enter a valid date (MM-DD-YYYY).', 'error'); return; }
   if (!sh || !eh) { showToast('Enter start and end times.', 'error'); return; }
 
-  const startMin = timeToMin(sh, sm, startAmPm);
-  const endMin = timeToMin(eh, em, endAmPm);
+  const startMin = timeToMin(sh, sm, sAmPm);
+  const endMin = timeToMin(eh, em, eAmPm);
   if (endMin <= startMin) { showToast('End time must be after start.', 'error'); return; }
 
   const isoDate = toIso(date);
@@ -1552,14 +1575,14 @@ async function saveEntry() {
 
 function clearForm() {
   document.getElementById('e-client').value = '';
-  document.getElementById('e-start-h').value = '';
-  document.getElementById('e-start-m').value = '';
-  document.getElementById('e-end-h').value = '';
-  document.getElementById('e-end-m').value = '';
+  document.getElementById('e-start-h').value = '9';
+  document.getElementById('e-start-m').value = '00';
+  document.getElementById('e-start-ampm').value = 'AM';
+  document.getElementById('e-end-h').value = '5';
+  document.getElementById('e-end-m').value = '00';
+  document.getElementById('e-end-ampm').value = 'PM';
   document.getElementById('e-lunch').value = '60';
   document.getElementById('e-desc').value = '';
-  startAmPm = 'AM'; endAmPm = 'PM';
-  toggleAmPm('start','AM'); toggleAmPm('end','PM');
   setQuickDate('today');
   updatePreview();
 }
@@ -2137,11 +2160,14 @@ function pickDate(isoDate, calId, inputId) {
 // =============================================
 // EDIT MODAL
 // =============================================
-let editStartAmPm = 'AM', editEndAmPm = 'PM';
+// editStartAmPm/editEndAmPm removed — now read directly from select elements
 
 function openEditModal(id) {
   const entry = state.pending.find(e => e.id === id);
   if (!entry) return;
+
+  // Ensure time selects are populated before setting values
+  populateTimeSelects();
 
   // Populate client dropdown
   const sel = document.getElementById('edit-client');
@@ -2169,26 +2195,24 @@ function openEditModal(id) {
   // Convert startMin / endMin back to 12-hour fields
   function minToFields(totalMin) {
     let h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
+    let m = totalMin % 60;
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 === 0 ? 12 : h % 12;
+    // Snap minutes to nearest 15-min interval for the select
+    m = Math.round(m / 15) * 15;
+    if (m === 60) { m = 0; } // shouldn't happen but just in case
     return { h: String(h), m: String(m).padStart(2,'0'), ampm };
   }
 
   const s = minToFields(entry.startMin);
   const en = minToFields(entry.endMin);
 
-  document.getElementById('edit-start-h').value = s.h;
-  document.getElementById('edit-start-m').value = s.m;
-  document.getElementById('edit-end-h').value   = en.h;
-  document.getElementById('edit-end-m').value   = en.m;
-
-  editStartAmPm = s.ampm;
-  editEndAmPm   = en.ampm;
-  document.getElementById('edit-start-am').classList.toggle('active', s.ampm === 'AM');
-  document.getElementById('edit-start-pm').classList.toggle('active', s.ampm === 'PM');
-  document.getElementById('edit-end-am').classList.toggle('active', en.ampm === 'AM');
-  document.getElementById('edit-end-pm').classList.toggle('active', en.ampm === 'PM');
+  document.getElementById('edit-start-h').value    = s.h;
+  document.getElementById('edit-start-m').value    = s.m;
+  document.getElementById('edit-start-ampm').value = s.ampm;
+  document.getElementById('edit-end-h').value      = en.h;
+  document.getElementById('edit-end-m').value      = en.m;
+  document.getElementById('edit-end-ampm').value   = en.ampm;
 
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -2198,17 +2222,7 @@ function closeEditModal() {
   document.getElementById('edit-cal').classList.remove('open');
 }
 
-function toggleEditAmPm(which, val) {
-  if (which === 'start') {
-    editStartAmPm = val;
-    document.getElementById('edit-start-am').classList.toggle('active', val === 'AM');
-    document.getElementById('edit-start-pm').classList.toggle('active', val === 'PM');
-  } else {
-    editEndAmPm = val;
-    document.getElementById('edit-end-am').classList.toggle('active', val === 'AM');
-    document.getElementById('edit-end-pm').classList.toggle('active', val === 'PM');
-  }
-}
+// toggleEditAmPm removed — AM/PM now a select element
 
 async function saveEdit() {
   const id     = document.getElementById('edit-entry-id').value;
@@ -2216,8 +2230,10 @@ async function saveEdit() {
   const date   = document.getElementById('edit-date').value;
   const sh     = document.getElementById('edit-start-h').value;
   const sm     = document.getElementById('edit-start-m').value || '0';
+  const sAmPm  = document.getElementById('edit-start-ampm').value;
   const eh     = document.getElementById('edit-end-h').value;
   const em     = document.getElementById('edit-end-m').value || '0';
+  const eAmPm  = document.getElementById('edit-end-ampm').value;
   const lunch  = parseInt(document.getElementById('edit-lunch').value) || 0;
   const desc   = document.getElementById('edit-desc').value.trim();
 
@@ -2225,8 +2241,8 @@ async function saveEdit() {
   if (!date || date.length !== 10) { showToast('Enter a valid date.', 'error'); return; }
   if (!sh || !eh) { showToast('Enter start and end times.', 'error'); return; }
 
-  const startMin = timeToMin(sh, sm, editStartAmPm);
-  const endMin   = timeToMin(eh, em, editEndAmPm);
+  const startMin = timeToMin(sh, sm, sAmPm);
+  const endMin   = timeToMin(eh, em, eAmPm);
   if (endMin <= startMin) { showToast('End time must be after start.', 'error'); return; }
 
   const updatedEntry = {

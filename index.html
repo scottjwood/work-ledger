@@ -636,6 +636,7 @@
       <input type="password" id="pin-input" placeholder="••••" maxlength="8" autofocus>
     </div>
     <div id="lock-error">Incorrect PIN. Try again.</div>
+    <div id="lock-debug" style="font-size:10px;color:var(--text-3);margin-top:4px;word-break:break-all;display:none"></div>
     <div id="lock-hint" style="font-size:11px;color:var(--text-3)">Default PIN: 1234 — change in Settings</div>
     <button class="btn btn-primary" onclick="attemptUnlock()">Unlock</button>
   </div>
@@ -1060,29 +1061,46 @@ function updateCache() {
 // within the same session.
 // =============================================
 
-// Fetch just the PIN from Sheets and cache it locally
+// Fetch just the PIN from Sheets and cache it locally.
+// We fetch the full loadAll payload (same call init() uses)
+// and pull the pin field out of it.
 async function fetchAndCachePin() {
-  try {
-    const data = await api('loadAll');
-    const pin = data.pin || '1234';
-    localStorage.setItem('ledger_pin', pin);
-    return pin;
-  } catch(e) {
-    // Network unavailable — fall back to cached PIN
-    return localStorage.getItem('ledger_pin') || '1234';
-  }
+  const data = await api('loadAll');
+  const pin = String(data.pin || '1234').trim();
+  localStorage.setItem('ledger_pin', pin);
+  // Pre-load state so init() can skip its own loadAll call
+  state.pending  = data.pending  || [];
+  state.history  = data.history  || [];
+  state.rate     = data.rate     || 75;
+  state.pin      = pin;
+  state.clients  = (data.clients || []).map(c => typeof c === 'string' ? { name: c, rate: null } : c);
+  return pin;
 }
 
 async function attemptUnlock() {
-  const pin = document.getElementById('pin-input').value;
-  const errEl = document.getElementById('lock-error');
-  const btn = document.querySelector('#lock-screen .btn-primary');
+  const pin    = document.getElementById('pin-input').value;
+  const errEl  = document.getElementById('lock-error');
+  const dbgEl  = document.getElementById('lock-debug');
+  const btn    = document.querySelector('#lock-screen .btn-primary');
 
-  // Show a subtle loading state while we verify against Sheets
   btn.textContent = 'Checking…';
   btn.disabled = true;
+  errEl.style.display = 'none';
+  dbgEl.style.display = 'none';
 
-  const correctPin = await fetchAndCachePin();
+  let correctPin = '1234';
+  let source = 'default';
+  try {
+    correctPin = await fetchAndCachePin();
+    source = 'sheets';
+  } catch(e) {
+    // fetchAndCachePin already falls back to localStorage internally,
+    // but surface any unexpected error here
+    const cached = localStorage.getItem('ledger_pin');
+    if (cached) { correctPin = cached; source = 'cache'; }
+    dbgEl.textContent = 'Sheets unreachable — using cached PIN. (' + e.message + ')';
+    dbgEl.style.display = 'block';
+  }
 
   btn.textContent = 'Unlock';
   btn.disabled = false;
@@ -1093,6 +1111,7 @@ async function attemptUnlock() {
     sessionStorage.setItem('ledger_unlocked', '1');
     init();
   } else {
+    errEl.textContent = 'Incorrect PIN. Try again. (verified via ' + source + ')';
     errEl.style.display = 'block';
     document.getElementById('pin-input').value = '';
     document.getElementById('pin-input').focus();
@@ -1114,7 +1133,13 @@ function lockApp() {
 async function init() {
 
 
-  await loadFromSheets();
+  // If state was already loaded by fetchAndCachePin (during unlock),
+  // skip the redundant loadFromSheets call to save a round-trip.
+  if (!state.pending.length && !state.history.length && !state.clients.length) {
+    await loadFromSheets();
+  } else {
+    updateCache();
+  }
   populateClients();
   populateHistoryFilters();
   setQuickDate('today');

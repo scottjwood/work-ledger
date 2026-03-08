@@ -1053,19 +1053,40 @@ function updateCache() {
 
 // =============================================
 // LOCK / UNLOCK
-// PIN is verified against state.pin which comes
-// from Google Sheets. On first load before Sheets
-// is reachable we fall back to localStorage copy.
+// On first visit (or after lock) we fetch the
+// PIN from Google Sheets so it's always current
+// across all devices. The fetched PIN is then
+// cached in localStorage for subsequent unlocks
+// within the same session.
 // =============================================
-function getStoredPin() {
-  return localStorage.getItem('ledger_pin') || '1234';
+
+// Fetch just the PIN from Sheets and cache it locally
+async function fetchAndCachePin() {
+  try {
+    const data = await api('loadAll');
+    const pin = data.pin || '1234';
+    localStorage.setItem('ledger_pin', pin);
+    return pin;
+  } catch(e) {
+    // Network unavailable — fall back to cached PIN
+    return localStorage.getItem('ledger_pin') || '1234';
+  }
 }
 
-function attemptUnlock() {
+async function attemptUnlock() {
   const pin = document.getElementById('pin-input').value;
   const errEl = document.getElementById('lock-error');
-  // Use locally cached PIN for instant response (no network round-trip on lock screen)
-  const correctPin = state.pin !== '1234' ? state.pin : getStoredPin();
+  const btn = document.querySelector('#lock-screen .btn-primary');
+
+  // Show a subtle loading state while we verify against Sheets
+  btn.textContent = 'Checking…';
+  btn.disabled = true;
+
+  const correctPin = await fetchAndCachePin();
+
+  btn.textContent = 'Unlock';
+  btn.disabled = false;
+
   if (pin === correctPin) {
     document.getElementById('lock-screen').style.display = 'none';
     errEl.style.display = 'none';
@@ -1752,8 +1773,9 @@ function switchTab(tab) {
 
 // =============================================
 // BOOT
-// PIN check uses cached local PIN for instant
-// response — no network round-trip on the lock screen.
+// If already unlocked this session, skip straight
+// to init. Otherwise show lock screen and wait
+// for attemptUnlock() which fetches PIN from Sheets.
 // =============================================
 if (sessionStorage.getItem('ledger_unlocked') === '1') {
   document.getElementById('lock-screen').style.display = 'none';
